@@ -1,4 +1,5 @@
 from sympy import *
+import numpy as np
 
 class Test:
     def __init__(self):
@@ -10,9 +11,36 @@ class Test:
         I2x, I2y, I2z = symbols("I2x I2y I2z")
         I3x, I3y, I3z = symbols("I3x I3y I3z")
         
+        pi = symbols('pi')
+        
         l1, l2, l3 = symbols("l1 l2 l3")
-        dh1 = self.denavit_hartenberg(theta1, 0.0, l1, 0.0)
-        dh2 = self.denavit_hartenberg(theta2, 0.0, l2, 0.0)  
+        lc1, lc2 = symbols("lc1 lc2")
+        
+        O0 = Matrix([[0.0],
+                     [0.0],
+                     [0.0]])
+        dhc1 = self.denavit_hartenberg(theta1, 0.0, lc1, 0.0)
+        
+        Oc1 = Matrix([dhc1.col(3)[j] for j in xrange(3)])        
+        dhl1 = self.denavit_hartenberg(0.0, 0.0, lc1, 0.0)
+        r = dhc1 * dhl1
+        O1 = Matrix([r.col(3)[j] for j in xrange(3)])              
+        
+        dhc2 = self.denavit_hartenberg(theta2, 0.0, lc2, 0.0)
+        r = dhc1 * dhl1 * dhc2
+        Oc2 = Matrix([r.col(3)[j] for j in xrange(3)])
+        dhl2 = self.denavit_hartenberg(0.0, 0.0, lc2, 0.0)
+        r = dhc1 * dhl1 * dhc2 * dhl2
+        On = Matrix([r.col(3)[j] for j in xrange(3)]) 
+        
+        z_i1 = Matrix([[0.0],
+                       [0.0],
+                       [1.0]])
+        
+        r1 = Matrix([z_i1.cross(Oc2 - O0)])         
+        print simplify(r1)
+        return
+        
         
         z1 = Matrix([[0, 0, 0, 1]]).transpose()
            
@@ -45,43 +73,56 @@ class Test:
         matr4 = Matrix([matr1, matr2])
         
         
-        links = [l1, l2]
-        thetas = [theta1, theta2]
-        alphas = [0.0, 0.0]
+        links = [l1, l2, l3]
+        thetas = [theta1, theta2, theta3]
+        alphas = [0.0, 0.0, 0.0]
         self.get_link_jacobian(links, thetas, alphas)
         
         
         
         
     def get_link_jacobian(self, links, thetas, alphas):
-        dhs = []
+        
         Os = [Matrix([[0.0],
                       [0.0],
                       [0.0]])]
-        z0s= []        
+        z0s= [Matrix([[0.0],
+                      [0.0],
+                      [1.0]])]
+        I = Matrix([[1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0]])
+        dhs = []        
         for i in xrange(len(links)):
             dhs.append(self.denavit_hartenberg(thetas[i], alphas[i], links[i], 0.0))
-            col3 = dhs[-1].col(2)
-            col4 = dhs[-1].col(3)
-            z = Matrix([col3[j] for j in xrange(3)])
-                             
-            O = Matrix([col4[j] for j in xrange(3)]) 
-                             
+            res = I
+            for k in xrange(i + 1):
+                res *= dhs[k]                           
+            col3 = res.col(2)
+            col4 = res.col(3)            
+            z = Matrix([col3[j] for j in xrange(3)])                
+            O = Matrix([col4[j] for j in xrange(3)])
+            
             Os.append(O)
-            z0s.append(z)
+            z0s.append(z)        
         js = [] 
-              
+            
         for i in xrange(len(links)):
-            Od = Os[-1] - Os[i]
-            print Od
-            r1 = Matrix([z0s[i].cross(Os[-1] - Os[i])])
-            #print r1
+            Od = Os[-1] - Os[i]            
+            r1 = Matrix([z0s[i].cross(Os[-1] - Os[i])])            
             m = Matrix([r1, z0s[i]]).transpose()
+            
             #print Matrix([m, m]).transpose()
                   
             js.append(m)
-        j = Matrix([js[i] for i in xrange(len(js))])
-        return j.transpose()
+        print js[0]
+        print "====="
+        print js[1]
+        print "====="
+        print js[2]
+        j = Matrix([js[i] for i in xrange(len(js))])        
+        return simplify(j.transpose())
             
         
     def denavit_hartenberg(self, theta, alpha, a, d):
