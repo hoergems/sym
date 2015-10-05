@@ -79,7 +79,34 @@ class Test:
         self.get_link_jacobian(links, thetas, alphas)
         
         
+    def get_link_jacobians(self, links, thetas, alphas, ms):
+        """
+        Center points of the links
+        """
+        midpoints = [Matrix([[links[i] / 2.0],
+                             [0.0],
+                             [0.0]]) for i in xrange(len(links))]
         
+        """
+        Vectors form the center points to the center of mass
+        """
+        mid_to_m_vectors [ms[i] - midpoints[i] for i in xrange(len(ms))]
+        
+        """
+        Vectors from the center of mass to the next link
+        """
+        m_to_link_vectors = [Matrix([[links[i]],
+                                      [0.0],
+                                      [0.0]]) - ms[i] for i in xrange(len(links))]
+        trans_matrices = [Matrix([[1.0, 0.0, 0.0, mid_to_m_vectors[i][0]],
+                                  [0.0, 1.0, 0.0, mid_to_m_vectors[i][1]],
+                                  [0.0, 0.0, 1.0, mid_to_m_vectors[i][2]],
+                                  [0.0, 0.0, 0.0, 1.0]]) for i in xrange(len(mid_to_m_vectors))]
+        trans_matrices2 = []
+        dhcs = [self.denavit_hartenberg(thetas[i], 0.0, midpoints[i], 0.0) for i in xrange(len(midpoints))]
+        dhcs = [dhcs[i] * trans_matrices[i] for i in xrange(len(dhcs))]
+         
+        dhc1 = self.denavit_hartenberg(theta1, 0.0, lc1, 0.0)    
         
     def get_link_jacobian(self, links, thetas, alphas):
         
