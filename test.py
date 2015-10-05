@@ -3,17 +3,42 @@ import numpy as np
 
 class Test:
     def __init__(self):
+        l1, l2, l3 = symbols("l1 l2 l3")
         theta1, theta2, theta3 = symbols("theta1 theta2 theta3")
+        dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3")
+        alpha1, alpha2, alpha3 = symbols("alpha1 alpha2 alpha3")
+        d1, d2, d3 = symbols("d1 d2 d3")
+        m1x, m1y, m1z = symbols("m1x m1y m1z")
+        m2x, m2y, m2z = symbols("m2x m2y m2z")
+        m3x, m3y, m3z = symbols("m3x m3y m3z")
+        
         m1, m2, m3 = symbols("m1 m2 m3")
-        a, d, alpha = symbols("a d alpha") 
+        
+        g = symbols("g")
+        '''ms = [Matrix([[m1x], 
+                      [m1y], 
+                      [m1z]]),
+              Matrix([[m2x], 
+                      [m2y], 
+                      [m2z]]),
+              Matrix([[m3x], 
+                      [m3y], 
+                      [m3z]])]'''
+        
+        ms = [Matrix([[l1 / 2.0], 
+                      [0.0], 
+                      [0.0]]),
+              Matrix([[l2 / 2.0], 
+                      [0.0], 
+                      [0.0]])]
+        
         
         I1x, I1y, I1z = symbols("I1x I1y I1z")
         I2x, I2y, I2z = symbols("I2x I2y I2z")
-        I3x, I3y, I3z = symbols("I3x I3y I3z")
+        I3x, I3y, I3z = symbols("I3x I3y I3z")       
         
-        pi = symbols('pi')
         
-        l1, l2, l3 = symbols("l1 l2 l3")
+        
         lc1, lc2 = symbols("lc1 lc2")
         
         O0 = Matrix([[0.0],
@@ -37,49 +62,77 @@ class Test:
                        [0.0],
                        [1.0]])
         
-        r1 = Matrix([z_i1.cross(Oc2 - O0)])         
-        print simplify(r1)
-        return
+        r1 = Matrix([z_i1.cross(Oc2 - O1)])         
+        #print simplify(r1)
+        
+        Jvs, Ocs =  self.get_link_jacobians([l1, l2], 
+                                            [theta1, theta2],
+                                            [0.0, 0.0],
+                                            [0.0, 0.0],
+                                            ms)
+        Is = [[I1x, I1y, I1z],
+              [I2x, I2y, I2z],
+              [I3x, I3y, I3z]]
+        M_is = self.construct_link_inertia_matrices([m1, m2, m3], Is)
+        M = simplify(self.calc_inertia_matrix(Jvs, M_is, [l1, l2]))        
+        C = self.calc_coriolis_matrix([theta1, theta2], [dot_theta1, dot_theta2], M)
+        
+        N = self.calc_generalized_forces([theta1, theta2],
+                                         [dot_theta1, dot_theta2], 
+                                         Ocs, 
+                                         [m1, m2, m3], 
+                                         g)
+        print simplify(M)
+        print simplify(C)
+        print simplify(N)
+        
+    def calc_generalized_forces(self, 
+                                thetas, 
+                                dot_thetas, 
+                                Ocs, 
+                                ms, 
+                                g):              
+        V = 0.0
+        for i in xrange(len(Ocs)):                                 
+            V += ms[i] * g * Ocs[i][1] 
+            
+        N = Matrix([[diff(V, thetas[i])] for i in xrange(len(thetas))])
+        return N
         
         
-        z1 = Matrix([[0, 0, 0, 1]]).transpose()
-           
+    def calc_coriolis_matrix(self, thetas, dot_thetas, M):
+        C = Matrix([[0.0 for m in xrange(len(thetas))] for n in xrange(len(thetas))])
+        for i in xrange(len(thetas)):
+            for j in xrange(len(thetas)):
+                val = 0.0
+                for k in xrange(len(thetas)):                                              
+                    val += self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k]
+                C[i, j] = val
+        return C   
+    
+    def calc_christoffel_symbol(self, i, j, k, thetas, M):
+        t_i_j_k = 0.5 * (diff(M[i, j], thetas[k]) + 
+                         diff(M[i, k], thetas[j]) -
+                         diff(M[k, j], thetas[i]))
+        return t_i_j_k
+    
+    def calc_inertia_matrix(self, Jvs, M_is, links): 
+        lc2 = links[1] / 2.0
+        res = Matrix([[0.0 for n in xrange(len(Jvs))] for m in xrange(len(Jvs))])        
+        for i in xrange(len(Jvs)):
+            res += Jvs[i].transpose() * M_is[i] * Jvs[i]        
+        return res
+    
+    def construct_link_inertia_matrices(self, ms, Is):
+        M_is = [Matrix([[ms[i], 0.0, 0.0, 0.0, 0.0, 0.0],
+                        [0.0, ms[i], 0.0, 0.0, 0.0, 0.0],
+                        [0.0, 0.0, ms[i], 0.0, 0.0, 0.0],
+                        [0.0, 0.0, 0.0, Is[i][0], 0.0, 0.0],
+                        [0.0, 0.0, 0.0, 0.0, Is[i][1], 0.0],
+                        [0.0, 0.0, 0.0, 0.0, 0.0, Is[i][2]]]) for i in xrange(len(ms))]
+        return M_is
         
-        res =  dh1.multiply(dh2.multiply(z1))
-        
-        
-        
-        matr1 = Matrix([[m1, 0, 0, 0, 0, 0],
-                        [0, m1, 0, 0, 0, 0],
-                        [0, 0, m1, 0, 0, 0],
-                        [0, 0, 0, I1x, 0, 0],
-                        [0, 0, 0, 0, I1y, 0],
-                        [0, 0, 0, 0, 0, I1z]])
-        
-        matr2 = Matrix([[m2, 0, 0, 0, 0, 0],
-                        [0, m2, 0, 0, 0, 0],
-                        [0, 0, m2, 0, 0, 0],
-                        [0, 0, 0, I2x, 0, 0],
-                        [0, 0, 0, 0, I2y, 0],
-                        [0, 0, 0, 0, 0, I2z]])
-        
-        matr3 = Matrix([[m3, 0, 0, 0, 0, 0],
-                        [0, m3, 0, 0, 0, 0],
-                        [0, 0, m3, 0, 0, 0],
-                        [0, 0, 0, I3x, 0, 0],
-                        [0, 0, 0, 0, I3y, 0],
-                        [0, 0, 0, 0, 0, I3z]])
-        
-        matr4 = Matrix([matr1, matr2])
-        
-        
-        links = [l1, l2, l3]
-        thetas = [theta1, theta2, theta3]
-        alphas = [0.0, 0.0, 0.0]
-        self.get_link_jacobian(links, thetas, alphas)
-        
-        
-    def get_link_jacobians(self, links, thetas, alphas, ms):
+    def get_link_jacobians(self, links, thetas, alphas, ds, ms):
         """
         Center points of the links
         """
@@ -90,7 +143,7 @@ class Test:
         """
         Vectors form the center points to the center of mass
         """
-        mid_to_m_vectors [ms[i] - midpoints[i] for i in xrange(len(ms))]
+        mid_to_m_vectors = [ms[i] - midpoints[i] for i in xrange(len(ms))]
         
         """
         Vectors from the center of mass to the next link
@@ -98,15 +151,60 @@ class Test:
         m_to_link_vectors = [Matrix([[links[i]],
                                       [0.0],
                                       [0.0]]) - ms[i] for i in xrange(len(links))]
-        trans_matrices = [Matrix([[1.0, 0.0, 0.0, mid_to_m_vectors[i][0]],
-                                  [0.0, 1.0, 0.0, mid_to_m_vectors[i][1]],
-                                  [0.0, 0.0, 1.0, mid_to_m_vectors[i][2]],
-                                  [0.0, 0.0, 0.0, 1.0]]) for i in xrange(len(mid_to_m_vectors))]
-        trans_matrices2 = []
-        dhcs = [self.denavit_hartenberg(thetas[i], 0.0, midpoints[i], 0.0) for i in xrange(len(midpoints))]
+        
+        trans_matrices = [self.denavit_hartenberg(0.0, 0.0, mid_to_m_vectors[i][0], 0.0) for i in xrange(len(mid_to_m_vectors))]        
+        trans_matrices2 = [self.denavit_hartenberg(0.0, 0.0, m_to_link_vectors[i][0], 0.0) for i in xrange(len(m_to_link_vectors))]
+        
+        dhcs = [self.denavit_hartenberg(thetas[i], alphas[i], midpoints[i][0], ds[i]) for i in xrange(len(midpoints))]
+        
+        """
+        Transformations from the link origins to the center of masses
+        """
         dhcs = [dhcs[i] * trans_matrices[i] for i in xrange(len(dhcs))]
-         
-        dhc1 = self.denavit_hartenberg(theta1, 0.0, lc1, 0.0)    
+        
+        Os = [Matrix([[0.0],
+                      [0.0],
+                      [0.0]])]
+        zs = [Matrix([[0.0],
+                      [0.0],
+                      [1.0]])]
+        Ocs = []
+        zcs = []
+        I = Matrix([[1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0]])
+        res = I
+        for i in xrange(len(links)):
+            res *= dhcs[i]
+            col3 = res.col(2)
+            col4 = res.col(3)
+            
+            z = Matrix([col3[j] for j in xrange(3)])
+            O = Matrix([col4[j] for j in xrange(3)])
+            Ocs.append(O)
+            zcs.append(z)
+            res = res * trans_matrices2[i]
+            col3 = res.col(2)
+            col4 = res.col(3)
+            
+            z = Matrix([col3[j] for j in xrange(3)])
+            O = Matrix([col4[j] for j in xrange(3)])
+            Os.append(O)
+            zs.append(z)
+                       
+        r1 = Matrix([zcs[0].cross(Ocs[1] - Os[1])])
+        Jvs = []
+        for i in xrange(len(links)):
+            Jv = Matrix([[0.0 for m in xrange(len(links))] for n in xrange(6)])
+            for k in xrange(i + 1):
+                r1 = Matrix(zcs[i].cross(Ocs[i] - Os[k]))
+                for t in xrange(3):
+                    Jv[t, k] = r1[t, 0]
+                    Jv[t + 3, k] = zcs[i][t, 0]
+            Jvs.append(simplify(Jv))
+        return Jvs, Ocs
+                            
         
     def get_link_jacobian(self, links, thetas, alphas):
         
