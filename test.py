@@ -1,8 +1,12 @@
 from sympy import *
 import numpy as np
 
+from scipy.integrate import ode, odeint
+
 class Test:
     def __init__(self):
+        #self.test_fot()
+        #return
         l1, l2, l3 = symbols("l1 l2 l3")
         theta1, theta2, theta3 = symbols("theta1 theta2 theta3")
         dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3")
@@ -11,6 +15,8 @@ class Test:
         m1x, m1y, m1z = symbols("m1x m1y m1z")
         m2x, m2y, m2z = symbols("m2x m2y m2z")
         m3x, m3y, m3z = symbols("m3x m3y m3z")
+        
+        rho1, rho2 = symbols("r1 r2")
         
         m1, m2, m3 = symbols("m1 m2 m3")
         
@@ -73,18 +79,73 @@ class Test:
         Is = [[I1x, I1y, I1z],
               [I2x, I2y, I2z],
               [I3x, I3y, I3z]]
-        M_is = self.construct_link_inertia_matrices([m1, m2, m3], Is)
+        M_is = self.construct_link_inertia_matrices([m1, m2], Is)
         M = simplify(self.calc_inertia_matrix(Jvs, M_is, [l1, l2]))        
         C = self.calc_coriolis_matrix([theta1, theta2], [dot_theta1, dot_theta2], M)
         
         N = self.calc_generalized_forces([theta1, theta2],
                                          [dot_theta1, dot_theta2], 
                                          Ocs, 
-                                         [m1, m2, m3], 
+                                         [m1, m2], 
                                          g)
-        print simplify(M)
-        print simplify(C)
-        print simplify(N)
+        
+        M = simplify(M)
+        C = simplify(C)
+        N = simplify(N)
+        self.dynamic(M, C, N, [theta1, theta2], [dot_theta1, dot_theta2], [rho1, rho2])
+        
+    def dynamic(self, M, C, N, thetas, dot_thetas, rs):
+        M_inv = M.inv()
+        Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas))])
+        Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas))])
+        Rs = Matrix([[rs[i]] for i in xrange(len(rs))])
+        
+        k = -M_inv * (C * Dotthetas + N) + M_inv * Rs       
+        m1 = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas))])
+        m2 = Matrix([0.0 for i in xrange(len(dot_thetas))])
+        h = m1.col_join(k)
+        print simplify(h)
+        
+    def test_fot(self):
+        q, qdot, qdotdot = symbols("q q_dot q_dot_dot")
+        r = symbols("r")        
+        x1, x2, x3 = symbols("x1 x2 x3")        
+        
+        f = Matrix([[qdot],
+                    [sin(q) + cos(qdot)]])        
+        
+        A = f.jacobian([q])
+        B = f.jacobian([qdot])
+        
+        self.initial = [0.0, 1.0]
+        
+        fot = f.subs([(q, x1), (qdot, x2)]) + A.subs([(q, x1), (qdot, x2)]) * (q - x1) + B.subs([(q, x1), (qdot, x2)]) * (q - x1)
+        fot = simplify(fot)        
+        
+        #print fot.subs([(q, 0.0), (q_dot, 0.0), (r, 1.0)])
+        t = np.linspace(0.0, 0.3, 100)
+        
+        
+        eq = odeint(self.f, np.array([0.0, 0.0]), t)
+        print "================="
+        print eq
+        
+        #print fot
+                
+    def f(self, y, t):
+        x1 = self.initial[0]
+        x2 = self.initial[1]        
+        q = y[0]
+        qdot = y[1]
+         
+        s = np.array([q - x1 + x2,
+                      (-q + x1)*np.sin(x2) + (q - x1)*np.cos(x1) + np.sin(x1) + np.cos(x2)])    
+        
+        #print "s " + str(s)
+        return s
+        
+        
+           
         
     def calc_generalized_forces(self, 
                                 thetas, 
