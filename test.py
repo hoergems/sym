@@ -1,12 +1,11 @@
 from sympy import *
 import numpy as np
+import time
 
 from scipy.integrate import ode, odeint
 
 class Test:
-    def __init__(self):
-        #self.test_fot()
-        #return
+    def __init__(self):        
         l1, l2, l3 = symbols("l1 l2 l3")
         theta1, theta2, theta3 = symbols("theta1 theta2 theta3")
         dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3")
@@ -15,22 +14,13 @@ class Test:
         m1x, m1y, m1z = symbols("m1x m1y m1z")
         m2x, m2y, m2z = symbols("m2x m2y m2z")
         m3x, m3y, m3z = symbols("m3x m3y m3z")
-        
         rho1, rho2 = symbols("r1 r2")
-        
         m1, m2, m3 = symbols("m1 m2 m3")
-        
         g = symbols("g")
-        '''ms = [Matrix([[m1x], 
-                      [m1y], 
-                      [m1z]]),
-              Matrix([[m2x], 
-                      [m2y], 
-                      [m2z]]),
-              Matrix([[m3x], 
-                      [m3y], 
-                      [m3z]])]'''
         
+        """
+        Coordinates of the center of masses relative to the link frames
+        """
         ms = [Matrix([[l1 / 2.0], 
                       [0.0], 
                       [0.0]]),
@@ -43,103 +33,150 @@ class Test:
         I2x, I2y, I2z = symbols("I2x I2y I2z")
         I3x, I3y, I3z = symbols("I3x I3y I3z")       
         
+        self.q = [theta1, theta2]
+        self.dotq = [dot_theta1, dot_theta2]
+        self.r = [rho1, rho2]
         
-        
-        lc1, lc2 = symbols("lc1 lc2")
-        
-        O0 = Matrix([[0.0],
-                     [0.0],
-                     [0.0]])
-        dhc1 = self.denavit_hartenberg(theta1, 0.0, lc1, 0.0)
-        
-        Oc1 = Matrix([dhc1.col(3)[j] for j in xrange(3)])        
-        dhl1 = self.denavit_hartenberg(0.0, 0.0, lc1, 0.0)
-        r = dhc1 * dhl1
-        O1 = Matrix([r.col(3)[j] for j in xrange(3)])              
-        
-        dhc2 = self.denavit_hartenberg(theta2, 0.0, lc2, 0.0)
-        r = dhc1 * dhl1 * dhc2
-        Oc2 = Matrix([r.col(3)[j] for j in xrange(3)])
-        dhl2 = self.denavit_hartenberg(0.0, 0.0, lc2, 0.0)
-        r = dhc1 * dhl1 * dhc2 * dhl2
-        On = Matrix([r.col(3)[j] for j in xrange(3)]) 
-        
-        z_i1 = Matrix([[0.0],
-                       [0.0],
-                       [1.0]])
-        
-        r1 = Matrix([z_i1.cross(Oc2 - O1)])         
-        #print simplify(r1)
-        
+        """
+        Get the Jacobians of the links expressed in the robot's base frame
+        """
         Jvs, Ocs =  self.get_link_jacobians([l1, l2], 
-                                            [theta1, theta2],
+                                            self.q,
                                             [0.0, 0.0],
                                             [0.0, 0.0],
                                             ms)
+        
+        """
+        Inertia parameters of the links
+        """
         Is = [[I1x, I1y, I1z],
               [I2x, I2y, I2z],
               [I3x, I3y, I3z]]
         M_is = self.construct_link_inertia_matrices([m1, m2], Is)
         M = simplify(self.calc_inertia_matrix(Jvs, M_is, [l1, l2]))        
-        C = self.calc_coriolis_matrix([theta1, theta2], [dot_theta1, dot_theta2], M)
-        
-        N = self.calc_generalized_forces([theta1, theta2],
-                                         [dot_theta1, dot_theta2], 
+        C = simplify(self.calc_coriolis_matrix(self.q, self.dotq, M))        
+        N = simplify(self.calc_generalized_forces(self.q,
+                                         self.dotq, 
                                          Ocs, 
                                          [m1, m2], 
-                                         g)
+                                         g))       
+       
+        print "Get dynamic model"
+        f = self.get_dynamic_model(M, C, N, self.q, self.dotq, self.r)
         
-        M = simplify(M)
-        C = simplify(C)
-        N = simplify(N)
-        self.dynamic(M, C, N, [theta1, theta2], [dot_theta1, dot_theta2], [rho1, rho2])
+        """
+        Substitude all parameters here
+        """
         
-    def dynamic(self, M, C, N, thetas, dot_thetas, rs):
+        """
+        Call test_fot2
+        """
+        
+        
+    def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs):
         M_inv = M.inv()
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas))])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas))])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs))])
         
-        k = -M_inv * (C * Dotthetas + N) + M_inv * Rs       
-        m1 = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas))])
-        m2 = Matrix([0.0 for i in xrange(len(dot_thetas))])
-        h = m1.col_join(k)
-        print simplify(h)
+        m_upper = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas))])
+        m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs
+        h = m_upper.col_join(m_lower)
+        return h
         
-    def test_fot(self):
-        q, qdot, qdotdot = symbols("q q_dot q_dot_dot")
-        r = symbols("r")        
-        x1, x2, x3 = symbols("x1 x2 x3")        
+    def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
+        print "hello " + str(len(thetas))        
+        A = f.jacobian(thetas)
+        B = f.jacobian(dot_thetas)
+        C = f.jacobian(rs)
         
-        f = Matrix([[qdot],
-                    [sin(q) + cos(qdot)]])        
+        for i in xrange(len(thetas)):
+            A = A.subs(thetas[i], thetas_star[i])
+            A = A.subs(dot_thetas[i], dot_thetas_star[i])
+            A = A.subs(rs[i], rs_star[i])
+            
+            B = B.subs(thetas[i], thetas_star[i])
+            B = B.subs(dot_thetas[i], dot_thetas_star[i])
+            B = B.subs(rs[i], rs_star[i])
+            
+            C = C.subs(thetas[i], dot_thetas[i])
+            C = C.subs(dot_thetas[i], dot_thetas_star[i])
+            C = C.subs(rs[i], rs_star[i])
+            
+            f = f.subs(thetas[i], thetas_star[i])
+            f = f.subs(dot_thetas[i], dot_thetas_star[i])
+            f = f.subs(rs[i], rs_star[i])
+        print A
+        print B
+        print C
         
-        A = f.jacobian([q])
-        B = f.jacobian([qdot])
+        q = Matrix([[thetas[i]] for i in xrange(len(thetas))])
+        dot_q = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas))])
+        r = Matrix([[rs[i]] for i in xrange(len(rs))])
         
-        self.initial = [0.0, 1.0]
+        q_star = Matrix([[thetas_star[i]] for i in xrange(len(thetas_star))])
+        dot_q_star = Matrix([[dot_thetas_star[i]] for i in xrange(len(dot_thetas_star))])
+        r_star = Matrix([[rs[i]] for i in xrange(len(rs_star))])
         
-        fot = f.subs([(q, x1), (qdot, x2)]) + A.subs([(q, x1), (qdot, x2)]) * (q - x1) + B.subs([(q, x1), (qdot, x2)]) * (q - x1)
-        fot = simplify(fot)        
+        print "Build taylor approximation"
+        fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) + C * (r - r_star)
+        return fot 
+    
+    def test_fot2(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
+        self.fot = self.taylor_approximation(f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star)       
+         
+        
+    def test_fot(self, f):
+        q1, q2, qdot1, qdot2, qdotdot1, qdotdot2 = symbols("q1 q2 qdot1 qdot2 qdotdot1 qdotdot2")
+        r1, r2 = symbols("r1 r2")       
+        x1_1, x1_2, x2_1, x2_2, x3_1, x3_2 = symbols("x1_1 x1_2 x2_1 x2_2 x3_1 x3_2")
+        
+        self.q = [q1, q2]
+        self.qdot = [qdot1, qdot2]
+        self.r = [r1, r2]
+        
+        self.q_star = [x1_1, x1_2]
+        self.qdot_star = [x2_1, x2_2]
+        self.r_star = [x3_1, x3_2]
+        self.initial = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] 
+        self.fot = self.taylor_approximation(f, 
+                                             q, 
+                                             qdot, 
+                                             q_star, 
+                                             qdot_star, 
+                                             r, 
+                                             r_star)        
+        q_star.extend(qdot_star)
+        q_star.extend(r_star)
+        print simplify(fot)
+        for i in xrange(len(q_star)):
+            fot = fot.subs(q_star[i], self.initial[0])
+        
         
         #print fot.subs([(q, 0.0), (q_dot, 0.0), (r, 1.0)])
-        t = np.linspace(0.0, 0.3, 100)
+        t = np.linspace(0.0, 0.3, 2)
         
-        
-        eq = odeint(self.f, np.array([0.0, 0.0]), t)
+        t0 = time.time()
+        eq = odeint(self.f, np.array(self.initial[:4]), t)
+        print "calc took " + str(time.time() - t0) + " seconds"
         print "================="
         print eq
         
-        #print fot
                 
-    def f(self, y, t):
-        x1 = self.initial[0]
-        x2 = self.initial[1]        
-        q = y[0]
-        qdot = y[1]
-         
-        s = np.array([q - x1 + x2,
-                      (-q + x1)*np.sin(x2) + (q - x1)*np.cos(x1) + np.sin(x1) + np.cos(x2)])    
+    def f(self, y, t):        
+        x1_1 = self.initial[0]
+        x1_2 = self.initial[1]
+        x2_1 = self.initial[2]
+        x2_2 = self.initial[3]
+        x3_1 = self.initial[4]
+        x3_2 = self.initial[5] 
+        q1 = y[0]
+        q2 = y[1]
+        qdot1 = y[2]
+        qdot2 = y[3]             
+        
+        self.fot.subs(q1, ) 
+           
         
         #print "s " + str(s)
         return s
