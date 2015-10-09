@@ -8,13 +8,16 @@ class Test:
     def __init__(self):        
         l1, l2, l3 = symbols("l1 l2 l3")
         theta1, theta2, theta3 = symbols("theta1 theta2 theta3")
-        dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3")
+        theta1_star, theta2_star, theta3_star = symbols("theta1_star theta2_star theta3_star")
+        dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3") 
+        dot_theta1_star, dot_theta2_star, dot_theta3_star = symbols("dot_theta1_star dot_theta2_star dot_theta3_star")       
         alpha1, alpha2, alpha3 = symbols("alpha1 alpha2 alpha3")
         d1, d2, d3 = symbols("d1 d2 d3")
         m1x, m1y, m1z = symbols("m1x m1y m1z")
         m2x, m2y, m2z = symbols("m2x m2y m2z")
         m3x, m3y, m3z = symbols("m3x m3y m3z")
         rho1, rho2 = symbols("r1 r2")
+        rho1_star, rho2_star = symbols("rho1_star rho2_star")
         m1, m2, m3 = symbols("m1 m2 m3")
         g = symbols("g")
         
@@ -22,10 +25,10 @@ class Test:
         Coordinates of the center of masses relative to the link frames
         """
         ms = [Matrix([[l1 / 2.0], 
-                      [0.0], 
+                      [0.01], 
                       [0.0]]),
               Matrix([[l2 / 2.0], 
-                      [0.0], 
+                      [-0.001], 
                       [0.0]])]
         
         
@@ -34,8 +37,11 @@ class Test:
         I3x, I3y, I3z = symbols("I3x I3y I3z")       
         
         self.q = [theta1, theta2]
+        self.q_star = [theta1_star, theta2_star]
         self.dotq = [dot_theta1, dot_theta2]
+        self.dotq_star = [dot_theta1_star, dot_theta2_star]
         self.r = [rho1, rho2]
+        self.r_star = [rho1_star, rho2_star]
         
         """
         Get the Jacobians of the links expressed in the robot's base frame
@@ -59,10 +65,34 @@ class Test:
                                          self.dotq, 
                                          Ocs, 
                                          [m1, m2], 
-                                         g))       
-       
+                                         g))
         print "Get dynamic model"
-        f = self.get_dynamic_model(M, C, N, self.q, self.dotq, self.r)
+        f = self.get_dynamic_model(M, C, N, self.q, self.dotq, self.r)        
+        f = simplify(f)
+        print f
+        fot = self.taylor_approximation(f, 
+                                        self.q, 
+                                        self.dotq, 
+                                        self.q_star, 
+                                        self.dotq_star, 
+                                        self.r,
+                                        self.r_star)
+        fot = fot.subs([(m1, 0.2), 
+                        (m2, 0.41),
+                        (l1, 1.0),
+                        (l2, 1.0),
+                        (I1x, 0.003),
+                        (I1y, 0.000012),
+                        (I1z, 0.01),
+                        (I2x, 0.0035),
+                        (I2y, 0.00012),
+                        (I2z, 0.012)])
+        '''fot = fot.subs([(theta1_star, 0.0),
+                        (theta2_star, 0.0)])'''
+        print "FOT=============="
+        print fot
+        print "simplify==================="
+        print simplify(fot)
         
         """
         Substitude all parameters here
@@ -105,10 +135,7 @@ class Test:
             
             f = f.subs(thetas[i], thetas_star[i])
             f = f.subs(dot_thetas[i], dot_thetas_star[i])
-            f = f.subs(rs[i], rs_star[i])
-        print A
-        print B
-        print C
+            f = f.subs(rs[i], rs_star[i])        
         
         q = Matrix([[thetas[i]] for i in xrange(len(thetas))])
         dot_q = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas))])
