@@ -1,23 +1,28 @@
+
 from sympy import *
 import numpy as np
 import time
+import os
+from sympy.printing import print_ccode
 
 from scipy.integrate import ode, odeint
 
 class Test:
     def __init__(self):        
-        l1, l2, l3 = symbols("l1 l2 l3")
-        theta1, theta2, theta3 = symbols("theta1 theta2 theta3")
-        theta1_star, theta2_star, theta3_star = symbols("theta1_star theta2_star theta3_star")
-        dot_theta1, dot_theta2, dot_theta3 = symbols("dot_theta1 dot_theta2 dot_theta3") 
-        dot_theta1_star, dot_theta2_star, dot_theta3_star = symbols("dot_theta1_star dot_theta2_star dot_theta3_star")       
+        l1, l2, l3 = symbols("ls[0] ls[1] ls[2]")
+        theta1, theta2 = symbols("x[0] x[1]")
+        dot_theta1, dot_theta2 = symbols("x[2] x[3]") 
+        theta1_star, theta2_star = symbols("thetas_star_[0] thetas_star_[1]")        
+        dot_theta1_star, dot_theta2_star = symbols("dot_thetas_star_[0] dot_thetas_star_[1]") 
+        rho1, rho2 = symbols("rhos[0] rhos[1]")
+        rho1_star, rho2_star = symbols("rhos_star_[0] rhos_star_[1]")
+              
         alpha1, alpha2, alpha3 = symbols("alpha1 alpha2 alpha3")
         d1, d2, d3 = symbols("d1 d2 d3")
         m1x, m1y, m1z = symbols("m1x m1y m1z")
         m2x, m2y, m2z = symbols("m2x m2y m2z")
         m3x, m3y, m3z = symbols("m3x m3y m3z")
-        rho1, rho2 = symbols("r1 r2")
-        rho1_star, rho2_star = symbols("rho1_star rho2_star")
+        
         m1, m2, m3 = symbols("m1 m2 m3")
         g = symbols("g")
         
@@ -68,8 +73,7 @@ class Test:
                                          g))
         print "Get dynamic model"
         f = self.get_dynamic_model(M, C, N, self.q, self.dotq, self.r)        
-        f = simplify(f)
-        print f
+        #f = simplify(f)      
         fot = self.taylor_approximation(f, 
                                         self.q, 
                                         self.dotq, 
@@ -86,14 +90,9 @@ class Test:
                         (I1z, 0.01),
                         (I2x, 0.0035),
                         (I2y, 0.00012),
-                        (I2z, 0.012)])
-        '''fot = fot.subs([(theta1_star, 0.0),
-                        (theta2_star, 0.0)])'''
-        print "FOT=============="
-        print fot
-        print "simplify==================="
-        print simplify(fot)
-        
+                        (I2z, 0.012),
+                        (g, -9.81)])
+        self.gen_cpp_code(fot)
         """
         Substitude all parameters here
         """
@@ -101,6 +100,32 @@ class Test:
         """
         Call test_fot2
         """
+        
+        """
+        Generate c++ code
+        """
+        
+    def gen_cpp_code(self, fot):
+        lines = list(open("integrate.cpp", 'r'))
+        idx = -1       
+        for i in xrange(len(lines)):
+            if "void Integrate::ode" in lines[i]:
+                idx = i        
+        cpp_string = "void Integrate::ode(const state_type &x , state_type &dxdt , double t) const {"
+        cpp_string += "std::vector<double> terms({"
+        for i in xrange(len(fot)):
+            cpp_string += ccode(fot[i])
+            if i != len(fot) - 1:
+                cpp_string += ", "
+        cpp_string += "});} \n"
+        
+        if not idx == -1:
+            lines[idx] = cpp_string
+            
+        os.remove("integrate.cpp")
+        with open("integrate.cpp", 'a+') as f:
+            for line in lines:
+                f.write(line)
         
         
     def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs):
@@ -110,16 +135,14 @@ class Test:
         Rs = Matrix([[rs[i]] for i in xrange(len(rs))])
         
         m_upper = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas))])
-        m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs
-        h = m_upper.col_join(m_lower)
+        m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs        
+        h = m_upper.col_join(m_lower)        
         return h
         
     def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
-        print "hello " + str(len(thetas))        
         A = f.jacobian(thetas)
         B = f.jacobian(dot_thetas)
         C = f.jacobian(rs)
-        
         for i in xrange(len(thetas)):
             A = A.subs(thetas[i], thetas_star[i])
             A = A.subs(dot_thetas[i], dot_thetas_star[i])
@@ -143,10 +166,10 @@ class Test:
         
         q_star = Matrix([[thetas_star[i]] for i in xrange(len(thetas_star))])
         dot_q_star = Matrix([[dot_thetas_star[i]] for i in xrange(len(dot_thetas_star))])
-        r_star = Matrix([[rs[i]] for i in xrange(len(rs_star))])
+        r_star = Matrix([[rs_star[i]] for i in xrange(len(rs_star))])
         
         print "Build taylor approximation"
-        fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) + C * (r - r_star)
+        fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) #+ C * (r - r_star)
         return fot 
     
     def test_fot2(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
@@ -200,16 +223,9 @@ class Test:
         q1 = y[0]
         q2 = y[1]
         qdot1 = y[2]
-        qdot2 = y[3]             
-        
-        self.fot.subs(q1, ) 
-           
-        
-        #print "s " + str(s)
-        return s
-        
-        
-           
+        qdot2 = y[3]
+        self.fot.subs(q1, )
+        return s   
         
     def calc_generalized_forces(self, 
                                 thetas, 
