@@ -9,7 +9,7 @@ from scipy.integrate import ode, odeint
 
 class Test:
     def __init__(self):        
-        l1, l2, l3 = symbols("ls[0] ls[1] ls[2]")
+        l1, l2 = symbols("ls[0] ls[1]")
         theta1, theta2 = symbols("x[0] x[1]")
         dot_theta1, dot_theta2 = symbols("x[2] x[3]") 
         theta1_star, theta2_star = symbols("thetas_star_[0] thetas_star_[1]")        
@@ -17,13 +17,13 @@ class Test:
         rho1, rho2 = symbols("rhos[0] rhos[1]")
         rho1_star, rho2_star = symbols("rhos_star_[0] rhos_star_[1]")
               
-        alpha1, alpha2, alpha3 = symbols("alpha1 alpha2 alpha3")
+        alpha1, alpha2 = symbols("alpha1 alpha2")
         d1, d2, d3 = symbols("d1 d2 d3")
         m1x, m1y, m1z = symbols("m1x m1y m1z")
         m2x, m2y, m2z = symbols("m2x m2y m2z")
-        m3x, m3y, m3z = symbols("m3x m3y m3z")
         
-        m1, m2, m3 = symbols("m1 m2 m3")
+        
+        m1, m2 = symbols("m1 m2")
         g = symbols("g")
         
         """
@@ -56,6 +56,7 @@ class Test:
                                             [0.0, 0.0],
                                             [0.0, 0.0],
                                             ms)
+        
         
         """
         Inertia parameters of the links
@@ -94,8 +95,8 @@ class Test:
                         (g, -9.81)])
         print "Generating c++ code..."
         self.gen_cpp_code(fot)
-        cmd = "cd build && cmake .. && make -j8"
-        os.system(cmd)
+        #cmd = "cd build && cmake .. && make -j8"
+        #os.system(cmd)
         print "Done"
         """
         Substitude all parameters here
@@ -240,10 +241,11 @@ class Test:
                                 dot_thetas, 
                                 Ocs, 
                                 ms, 
-                                g):              
+                                g):
+        print Ocs              
         V = 0.0
         for i in xrange(len(Ocs)):                                 
-            V += ms[i] * g * Ocs[i][1] 
+            V += ms[i] * g * Ocs[i][2] 
             
         N = Matrix([[diff(V, thetas[i])] for i in xrange(len(thetas))])
         return N
@@ -341,7 +343,7 @@ class Test:
             O = Matrix([col4[j] for j in xrange(3)])
             Os.append(O)
             zs.append(z)
-                       
+                  
         r1 = Matrix([zcs[0].cross(Ocs[1] - Os[1])])
         Jvs = []
         for i in xrange(len(links)):
@@ -353,51 +355,6 @@ class Test:
                     Jv[t + 3, k] = zcs[i][t, 0]
             Jvs.append(simplify(Jv))
         return Jvs, Ocs
-                            
-        
-    def get_link_jacobian(self, links, thetas, alphas):
-        
-        Os = [Matrix([[0.0],
-                      [0.0],
-                      [0.0]])]
-        z0s= [Matrix([[0.0],
-                      [0.0],
-                      [1.0]])]
-        I = Matrix([[1.0, 0.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0]])
-        dhs = []        
-        for i in xrange(len(links)):
-            dhs.append(self.denavit_hartenberg(thetas[i], alphas[i], links[i], 0.0))
-            res = I
-            for k in xrange(i + 1):
-                res *= dhs[k]                           
-            col3 = res.col(2)
-            col4 = res.col(3)            
-            z = Matrix([col3[j] for j in xrange(3)])                
-            O = Matrix([col4[j] for j in xrange(3)])
-            
-            Os.append(O)
-            z0s.append(z)        
-        js = [] 
-            
-        for i in xrange(len(links)):
-            Od = Os[-1] - Os[i]            
-            r1 = Matrix([z0s[i].cross(Os[-1] - Os[i])])            
-            m = Matrix([r1, z0s[i]]).transpose()
-            
-            #print Matrix([m, m]).transpose()
-                  
-            js.append(m)
-        print js[0]
-        print "====="
-        print js[1]
-        print "====="
-        print js[2]
-        j = Matrix([js[i] for i in xrange(len(js))])        
-        return simplify(j.transpose())
-            
         
     def denavit_hartenberg(self, theta, alpha, a, d):
         matrix = Matrix([[cos(theta), -sin(theta) * cos(alpha), sin(theta) * sin(alpha), a * cos(theta)],

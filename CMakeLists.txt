@@ -18,18 +18,18 @@ link_directories(/usr/lib /usr/local/lib)
 
 # link the libraries to the executable
 
-add_library(libintegrate SHARED integrate.cpp)
+add_library(integrate SHARED integrate.cpp)
 
-target_link_libraries (libintegrate
+target_link_libraries (integrate
                        boost_system
                        boost_python
                        python2.7)
-set_property(TARGET libintegrate PROPERTY CXX_STANDARD 11)
+set_property(TARGET integrate PROPERTY CXX_STANDARD 11)
 
-add_executable(inte main.cpp)
-set_property(TARGET inte PROPERTY CXX_STANDARD 11)
-target_link_libraries (inte
-                       libintegrate)
+#add_executable(inte main.cpp)
+#set_property(TARGET inte PROPERTY CXX_STANDARD 11)
+#target_link_libraries (inte
+#                       integrate)
 
 
 

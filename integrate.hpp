@@ -18,11 +18,11 @@ namespace shared {
     public:
     	Integrate(double k);
     	
-    	void do_integration(state_type &x, double &t0, double &te, double &step_size);
+    	void do_integration(std::vector<double> &x, std::vector<double> &int_times) const;
     	
     	void ode(const state_type &x , state_type &dxdt , double t) const;
     	
-    	void setup(std::vector<double> &thetas_star, std::vector<double> &dot_thetas_star, std::vector<double> &rhos_star);
+    	void setup(std::vector<double> &thetas_star, std::vector<double> &dot_thetas_star, std::vector<double> &rhos_star);    	
     	
     private:
     	std::vector<double> thetas_star_;
