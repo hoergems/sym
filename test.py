@@ -92,7 +92,11 @@ class Test:
                         (I2y, 0.00012),
                         (I2z, 0.012),
                         (g, -9.81)])
+        print "Generating c++ code..."
         self.gen_cpp_code(fot)
+        cmd = "cd build && cmake .. && make -j8"
+        os.system(cmd)
+        print "Done"
         """
         Substitude all parameters here
         """
@@ -117,8 +121,12 @@ class Test:
             cpp_string += ccode(fot[i])
             if i != len(fot) - 1:
                 cpp_string += ", "
-        cpp_string += "});} \n"
+        cpp_string += "});"
         
+        cpp_string += "dxdt.clear();"
+        cpp_string += "for(size_t i = 0; i < x.size(); i++) { dxdt.push_back(terms[i]); }"
+        cpp_string += "} \n"
+                
         if not idx == -1:
             lines[idx] = cpp_string
             
