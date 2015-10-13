@@ -33,10 +33,10 @@ class Test:
         Coordinates of the center of masses relative to the link frames
         """
         ms = [Matrix([[l1 / 2.0], 
-                      [0.01], 
+                      [0.0], 
                       [0.0]]),
               Matrix([[l2 / 2.0], 
-                      [-0.001], 
+                      [0.0], 
                       [0.0]])]
         
         
@@ -53,14 +53,40 @@ class Test:
         
         """
         Get the Jacobians of the links expressed in the robot's base frame
-        """
-        Jvs, Ocs =  self.get_link_jacobians([l1, l2], 
+        """        
+        joint_origins = [Matrix([[0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0]]),
+                         Matrix([[l1],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0]]),
+                         Matrix([[l2],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0],
+                                 [0.0]])]
+        axis = [Matrix([[0.0],
+                        [0.0],
+                        [1.0]]),
+                Matrix([[0.0],
+                        [0.0],
+                        [1.0]])]
+        Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q)
+        Jvs2, Ocs2 =  self.get_link_jacobians2([l1, l2], 
                                             self.q,
                                             [0.0, 0.0],
                                             [0.0, 0.0],
                                             ms)
-        
-        
+        print simplify(Jvs)
+        print simplify(Jvs2)
+        sleep
         """
         Inertia parameters of the links
         """
@@ -71,10 +97,10 @@ class Test:
         M = simplify(self.calc_inertia_matrix(Jvs, M_is, [l1, l2]))        
         C = simplify(self.calc_coriolis_matrix(self.q, self.dotq, M))        
         N = simplify(self.calc_generalized_forces(self.q,
-                                         self.dotq, 
-                                         Ocs, 
-                                         [m1, m2], 
-                                         g))
+                                                  self.dotq, 
+                                                  Ocs, 
+                                                  [m1, m2], 
+                                                  g))
         print "Get dynamic model"
         f = self.get_dynamic_model(M, C, N, self.q, self.dotq, self.r)        
         #f = simplify(f)      
@@ -116,50 +142,60 @@ class Test:
     def parse_urdf(self, xml_file):
         robot = Robot(xml_file)
         
-        link_names = v_string()
-        robot.getLinkNames(link_names)
-        nms = [link_names[i] for i in xrange(len(link_names))]
-        print "names " + str(nms)
-        
-        masses = v_double()
-        robot.getLinkMasses(link_names, masses)        
-        ms = [masses[i] for i in xrange(len(masses))]
-        print "masses " + str(ms)        
-        
-        inertia_pose = v2_double()
-        robot.getLinkInertialPose(link_names, inertia_pose)
-        in_pse = [[inertia_pose[i][j] for j in xrange(len(inertia_pose[i]))] for i in xrange(len(inertia_pose))]
-        print "inertial pose " + str(in_pse)
-        
-        link_pose = v2_double()
-        robot.getLinkPose(link_names, link_pose)
-        link_pse = [[link_pose[i][j] for j in xrange(len(link_pose[i]))] for i in xrange(len(link_pose))]
-        print "link pose " + str(link_pse)
-        
-        link_dim = v2_double()
-        robot.getLinkDimension(link_names, link_dim)
-        link_dm = [[link_dim[i][j] for j in xrange(len(link_dim[i]))] for i in xrange(len(link_dim))]
-        print "link dimension " + str(link_dm)
-        
         joint_names = v_string()
         robot.getJointNames(joint_names)
-        joint_nms = [joint_names[i] for i in xrange(len(joint_names))]
-        print "joint names " + str(joint_nms)
+        self.joint_names = [joint_names[i] for i in xrange(len(joint_names))]
+        print self.joint_names              
         
         joint_type = v_string()
         robot.getJointType(joint_names, joint_type)
-        joint_tpe = [joint_type[i] for i in xrange(len(joint_type))]
-        print "joint type " + str(joint_tpe)
+        self.joint_types = [joint_type[i] for i in xrange(len(joint_type))]
         
         joint_origins = v2_double()
         robot.getJointOrigin(joint_names, joint_origins)
-        joint_orgns = [[joint_origins[i][j] for j in xrange(len(joint_origins[i]))] for i in xrange(len(joint_origins))]
-        print "joint origins " + str(joint_orgns)
+        self.joint_origins = [Matrix([[joint_origins[i][j]] for j in xrange(len(joint_origins[i]))]) for i in xrange(len(joint_origins))]
+        print "joint origins " + str(self.joint_origins)
         
         joint_axis = v2_double()
         robot.getJointAxis(joint_names, joint_axis)
-        joint_axs = [[joint_axis[i][j] for j in xrange(len(joint_axis[i]))] for i in xrange(len(joint_axis))]
-        print "joint axes " + str(joint_axs)
+        self.joint_axis = [Matrix([[joint_axis[i][j]] for j in xrange(len(joint_axis[i]))]) for i in xrange(len(joint_axis))]
+        print "joint axes " + str(self.joint_axis)
+        
+        self.q = []
+        self.qdot = []
+        for i in xrange(len(self.joint_names)):
+            if self.joint_types[i] == "revolute":
+                symb_string_q = "x[" + str(i) + "]"
+                symb_string_q_dot = "x[" + str(i + len(self.joint_names)) + "]"
+                self.q.append(symbols(symb_string_q))
+                self.qdot.append(symbols(symb_string_q_dot))
+            else:                
+                self.q.append(0.0)
+                self.qdot.append(0.0)
+        print self.q 
+        print self.qdot
+        sleep
+        
+        link_names = v_string()
+        robot.getLinkNames(link_names)
+        self.link_names = [link_names[i] for i in xrange(len(link_names))]        
+        
+        inertia_pose = v2_double()
+        robot.getLinkInertialPose(link_names, inertia_pose)
+        self.inertial_poses = [[inertia_pose[i][j] for j in xrange(len(inertia_pose[i]))] for i in xrange(len(inertia_pose))]                                 
+        
+        masses = v_double()
+        robot.getLinkMasses(link_names, masses)        
+        self.link_masses = [masses[i] for i in xrange(len(masses))]
+        print self.link_masses 
+        
+        link_inertias = v2_double()
+        robot.getLinkInertias(link_names, link_inertias)        
+        self.link_inertias = [Matrix([[link_inertias[i][0], link_inertias[i][1], link_inertias[i][2]],
+                                      [link_inertias[i][1], link_inertias[i][3], link_inertias[i][4]],
+                                      [link_inertias[i][2], link_inertias[i][4], link_inertias[i][5]]]) for i in xrange(len(link_inertias))]
+        print self.link_inertias
+                              
         
     def gen_cpp_code(self, fot):
         lines = list(open("integrate.cpp", 'r'))
@@ -334,7 +370,116 @@ class Test:
                         [0.0, 0.0, 0.0, 0.0, 0.0, Is[i][2]]]) for i in xrange(len(ms))]
         return M_is
         
-    def get_link_jacobians(self, links, thetas, alphas, ds, ms):
+    def get_link_jacobians(self, joint_origins, com_coordinates, axis, thetas):
+        """
+        Center points of the links
+        """
+        '''midpoints = [Matrix([[links[i] / 2.0],
+                             [0.0],
+                             [0.0]]) for i in xrange(len(links))]'''
+        
+        """
+        Vectors form the center points to the center of mass
+        """
+        '''mid_to_m_vectors = [ms[i] - midpoints[i] for i in xrange(len(ms))]'''
+        
+        """
+        Vectors from the center of mass to the next joint origin
+        """
+        m_to_joint_vectors = [Matrix([[joint_origins[i + 1][0]],
+                                      [joint_origins[i + 1][1]],
+                                      [joint_origins[i + 1][2]]]) - com_coordinates[i] for i in xrange(len(joint_origins) - 1)]
+        
+        '''m_to_link_vectors = [Matrix([[links[i]],
+                                      [0.0],
+                                      [0.0]]) - ms[i] for i in xrange(len(links))]'''
+        
+        """
+        Transformation matrix from the joint origins to the center of masses
+        """
+        '''trans_matrices = [self.transform(com_coordinates[i][0], 
+                                         com_coordinates[i][1], 
+                                         com_coordinates[i][2], 
+                                         0.0, 
+                                         0.0, 
+                                         0.0) for i in xrange(len(ms))]'''
+        """
+        Transformation matrix from the center of masses to the next joint origins
+        """
+        trans_matrices2 = [self.transform(m_to_joint_vectors[i][0], 
+                                          m_to_joint_vectors[i][1], 
+                                          m_to_joint_vectors[i][2], 
+                                          0.0, 
+                                          0.0, 
+                                          0.0) for i in xrange(len(m_to_joint_vectors))]        
+        
+        #trans_matrices = [self.denavit_hartenberg(0.0, 0.0, mid_to_m_vectors[i][0], 0.0) for i in xrange(len(mid_to_m_vectors))]        
+        #trans_matrices2 = [self.denavit_hartenberg(0.0, 0.0, m_to_link_vectors[i][0], 0.0) for i in xrange(len(m_to_link_vectors))]
+        
+        
+        #dhcs = [self.denavit_hartenberg(thetas[i], alphas[i], midpoints[i][0], ds[i]) for i in xrange(len(midpoints))]
+        
+        """
+        Transformations from the link origins to the center of masses
+        """    
+         
+        dhcs = [self.transform(com_coordinates[i][0], 
+                               com_coordinates[i][1], 
+                               com_coordinates[i][2], 
+                               joint_origins[i][3] + axis[i][0] * thetas[i], 
+                               joint_origins[i][4] + axis[i][1] * thetas[i], 
+                               joint_origins[i][5] + axis[i][2] * thetas[i]) for i in xrange(len(com_coordinates))]
+       
+        
+        #dhcs = [dhcs[i] * trans_matrices[i] for i in xrange(len(dhcs))]
+        
+        """
+        O and z of the first joint
+        """
+        Os = [Matrix([[joint_origins[0][0]],
+                      [joint_origins[0][1]],
+                      [joint_origins[0][2]]])]
+        zs = [Matrix([[axis[0][0]],
+                      [axis[0][1]],
+                      [axis[0][2]]])]
+        Ocs = []
+        zcs = []
+        I = Matrix([[1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0]])
+        res = I
+        for i in xrange(len(thetas)):
+            res *= dhcs[i]
+            col3 = res.col(2)
+            col4 = res.col(3)
+            
+            z = Matrix([col3[j] for j in xrange(3)])
+            O = Matrix([col4[j] for j in xrange(3)])
+            Ocs.append(O)
+            zcs.append(z)
+            res = res * trans_matrices2[i]
+            col3 = res.col(2)
+            col4 = res.col(3)
+            
+            z = Matrix([col3[j] for j in xrange(3)])
+            O = Matrix([col4[j] for j in xrange(3)])
+            Os.append(O)
+            zs.append(z)
+                  
+        r1 = Matrix([zcs[0].cross(Ocs[1] - Os[1])])
+        Jvs = []
+        for i in xrange(len(thetas)):
+            Jv = Matrix([[0.0 for m in xrange(len(thetas))] for n in xrange(6)])
+            for k in xrange(i + 1):
+                r1 = Matrix(zcs[i].cross(Ocs[i] - Os[k]))
+                for t in xrange(3):
+                    Jv[t, k] = r1[t, 0]
+                    Jv[t + 3, k] = zcs[i][t, 0]
+            Jvs.append(simplify(Jv))
+        return Jvs, Ocs
+    
+    def get_link_jacobians2(self, links, thetas, alphas, ds, ms):
         """
         Center points of the links
         """
@@ -345,7 +490,8 @@ class Test:
         """
         Vectors form the center points to the center of mass
         """
-        mid_to_m_vectors = [ms[i] - midpoints[i] for i in xrange(len(ms))]
+        mid_to_m_vectors = [ms[i] - midpoints[i] for i in xrange(len(ms))]        
+        
         
         """
         Vectors from the center of mass to the next link
@@ -354,15 +500,25 @@ class Test:
                                       [0.0],
                                       [0.0]]) - ms[i] for i in xrange(len(links))]
         
-        trans_matrices = [self.denavit_hartenberg(0.0, 0.0, mid_to_m_vectors[i][0], 0.0) for i in xrange(len(mid_to_m_vectors))]        
-        trans_matrices2 = [self.denavit_hartenberg(0.0, 0.0, m_to_link_vectors[i][0], 0.0) for i in xrange(len(m_to_link_vectors))]
+        #print m_to_link_vectors[0]
         
+        trans_matrices = [self.denavit_hartenberg(0.0, 0.0, mid_to_m_vectors[i][0], 0.0) for i in xrange(len(mid_to_m_vectors))]
+        '''trans_matrices = [self.transform(mid_to_m_vectors[i][0], 
+                                         mid_to_m_vectors[i][1], 
+                                         mid_to_m_vectors[i][2], 
+                                         0.0, 0.0, 0.0) for i in xrange(len(mid_to_m_vectors))]'''        
+        trans_matrices2 = [self.denavit_hartenberg(0.0, 0.0, m_to_link_vectors[i][0], 0.0) for i in xrange(len(m_to_link_vectors))]
+        '''trans_matrices2 = [self.transform(m_to_link_vectors[i][0], 
+                                          m_to_link_vectors[i][1], 
+                                          m_to_link_vectors[i][2], 
+                                          0.0, 0.0, 0.0) for i in xrange(len(m_to_link_vectors))]'''                
         dhcs = [self.denavit_hartenberg(thetas[i], alphas[i], midpoints[i][0], ds[i]) for i in xrange(len(midpoints))]
         
         """
         Transformations from the link origins to the center of masses
         """
         dhcs = [dhcs[i] * trans_matrices[i] for i in xrange(len(dhcs))]
+        
         
         Os = [Matrix([[0.0],
                       [0.0],
@@ -406,6 +562,27 @@ class Test:
                     Jv[t + 3, k] = zcs[i][t, 0]
             Jvs.append(simplify(Jv))
         return Jvs, Ocs
+    
+    def transform(self, x, y, z, r, p, yaw):
+        trans = Matrix([[1.0, 0.0, 0.0, x],
+                        [0.0, 1.0, 0.0, y],
+                        [0.0, 0.0, 1.0, z],
+                        [0.0, 0.0, 0.0, 1.0]])
+        roll = Matrix([[1.0, 0.0, 0.0, 0.0],
+                       [0.0, cos(r), -sin(r), 0.0],
+                       [0.0, sin(r), cos(r), 0.0],
+                       [0.0, 0.0, 0.0, 1.0]])
+        pitch = Matrix([[cos(p), 0.0, sin(p), 0.0],
+                        [0.0, 1.0, 0.0, 0.0],
+                        [-sin(p), 0.0, cos(p), 0.0],
+                        [0.0, 0.0, 0.0, 1.0]])
+        yaw = Matrix([[cos(yaw), -sin(yaw), 0.0, 0.0],
+                      [sin(yaw), cos(yaw), 0.0, 0.0],
+                      [0.0, 0.0, 1.0, 0.0],
+                      [0.0, 0.0, 0.0, 1.0]])
+        
+        res = roll * pitch * yaw * trans
+        return res
         
     def denavit_hartenberg(self, theta, alpha, a, d):
         matrix = Matrix([[cos(theta), -sin(theta) * cos(alpha), sin(theta) * sin(alpha), a * cos(theta)],

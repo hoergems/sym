@@ -21,6 +21,8 @@ namespace shared {
     	    
     	    void getLinkInertialPose(std::vector<std::string> &link, std::vector<std::vector<double>> &pose);
     	    
+    	    void getLinkInertias(std::vector<std::string> &link, std::vector<std::vector<double>> &inertias);
+    	    
     	    void getJointNames(std::vector<std::string> &joint_names);
     	    
     	    void getJointType(std::vector<std::string> &joint, std::vector<std::string> &type);
@@ -28,6 +30,8 @@ namespace shared {
     	    void getJointOrigin(std::vector<std::string> &joints, std::vector<std::vector<double>> &origins);
     	    
     	    void getJointAxis(std::vector<std::string> &joints, std::vector<std::vector<double>> &axis);
+    	    
+    	    
     
         private:
             std::string robot_file_;

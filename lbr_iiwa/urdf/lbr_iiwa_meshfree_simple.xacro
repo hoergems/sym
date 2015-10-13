@@ -1,0 +1,196 @@
+<?xml version="1.0"?>
+<robot name="lbr_iiwa" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Import all Gazebo-customization elements, including Gazebo colors -->
+  <xacro:include filename="$(find lbr_iiwa_description)/urdf/lbr_iiwa.gazebo.xacro" />
+  <!-- Import Transmissions -->
+  <xacro:include filename="$(find lbr_iiwa_description)/urdf/lbr_iiwa.transmission.xacro" />
+  <!-- Include Utilities -->
+  <xacro:include filename="$(find lbr_iiwa_description)/urdf/utilities.xacro" />
+
+  <!-- some constants -->
+ <!-- <xacro:property name="safety_controller_k_pos" value="100" />
+  <xacro:property name="safety_controller_k_vel" value="2" /> -->
+  <xacro:property name="joint_damping" value="0.5" />
+  <xacro:property name="max_effort_joint1" value="10"/>
+  <xacro:property name="max_effort_joint2" value="20"/>
+  <xacro:property name="max_effort_joint3" value="10"/>
+  <xacro:property name="max_velocity" value="10"/>
+  <xacro:property name="len_link_0" value="0.1575"/>
+  <xacro:property name="len_link_1" value="0.2025"/>
+  <xacro:property name="len_link_2" value="0.2045"/>
+  <xacro:property name="len_link_3" value="0.2155"/>
+  <xacro:property name="len_link_4" value="0.1845"/>
+  <xacro:property name="len_link_5" value="0.2155"/>
+  <xacro:property name="len_link_6" value="0.081"/>
+  <xacro:property name="len_link_7" value="0.04"/>
+
+  <xacro:macro name="lbr_iiwa" params="parent name hardware_interface *origin">
+
+    <!--joint between {parent} and link_0-->
+    <joint name="${parent}_joint" type="fixed">
+      <insert_block name="origin"/>
+      <parent link="${parent}"/>
+      <child link="${name}_link_0"/>
+    </joint>
+
+    <link name="${name}_link_0">
+      <inertial>
+        <origin xyz="-0.1 0 0.07" rpy="0 0 0"/>
+        <mass value="5"/>
+        <inertia ixx="0.05"  ixy="0"  ixz="0" iyy="0.06" iyz="0" izz="0.03" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 ${len_link_0 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.15 0.15 ${len_link_0}"/>
+        </geometry>
+        <material name="Grey"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 ${len_link_0 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.15 0.15 ${len_link_0}"/>
+        </geometry>
+        <material name="Grey"/>
+      </collision>
+
+      <!--self_collision_checking>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <capsule radius="0.15" length="0.25"/>
+        </geometry>
+      </self_collision_checking-->
+
+    </link>
+
+    <!-- joint between link_0 and link_1 -->
+    <joint name="${name}_joint_1" type="revolute">
+      <parent link="${name}_link_0"/>
+      <child link="${name}_link_1"/>
+      <origin xyz="0 0 0.1575" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-180 * PI / 180}" upper="${180 * PI / 180}"
+             effort="${max_effort_joint1}" velocity="${max_velocity}" />
+      <!--   <safety_controller soft_lower_limit="${-168 * M_PI / 180}"
+           soft_upper_limit="${168 * M_PI / 180}"
+           k_position="${safety_controller_k_pos}"
+           k_velocity="${safety_controller_k_vel}"/> -->
+      <dynamics damping="${joint_damping}"/>
+    </joint>
+
+    <link name="${name}_link_1">
+      <inertial>
+        <origin xyz="0 -0.03 0.12" rpy="0 0 0"/>
+        <mass value="4"/>
+        <inertia ixx="0.1"  ixy="0"  ixz="0" iyy="0.09" iyz="0" izz="0.02" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 ${len_link_1 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 0.05 ${len_link_1}"/>
+        </geometry>
+        <material name="Orange"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 ${len_link_1 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 0.05 ${len_link_1}"/>
+        </geometry>
+        <material name="Orange"/>
+      </collision>
+    </link>
+
+    <!-- joint between link_1 and link_2 -->
+    <joint name="${name}_joint_2" type="revolute">
+      <parent link="${name}_link_1"/>
+      <child link="${name}_link_2"/>
+      <origin xyz="0 0 0.2025" rpy="${PI / 2}   0 ${PI}"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-120 * PI / 180}" upper="${120 * PI / 180}"
+             effort="${max_effort_joint2}" velocity="${max_velocity}" />
+      <!-- <safety_controller soft_lower_limit="${-118 * PI / 180}"
+           soft_upper_limit="${118 * PI / 180}"
+           k_position="${safety_controller_k_pos}"
+           k_velocity="${safety_controller_k_vel}"/> -->
+      <dynamics damping="${joint_damping}"/>
+    </joint>
+
+    <link name="${name}_link_2">
+      <inertial>
+        <origin xyz="0.0003 0.059 0.042" rpy="0 0 0"/>
+        <mass value="4"/>
+        <inertia ixx="0.05"  ixy="0"  ixz="0" iyy="0.018" iyz="0" izz="0.044" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 ${len_link_2 / 2} 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 ${len_link_2} 0.05"/>
+        </geometry>
+        <material name="Orange"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 ${len_link_2 / 2} 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 ${len_link_2} 0.05"/>
+        </geometry>
+        <material name="Orange"/>
+      </collision>
+    </link>
+
+    <!-- joint between link_2 and link_3 -->
+    <joint name="${name}_joint_3" type="revolute">
+      <parent link="${name}_link_2"/>
+      <child link="${name}_link_3"/>
+      <origin xyz="0 0.2045 0" rpy="${PI / 2} 0 ${PI}"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="${-170 * PI / 180}" upper="${170 * PI / 180}"
+             effort="${max_effort_joint3}" velocity="${max_velocity}" />
+      <!--limit lower="0" upper="0"
+             effort="${max_effort_joint3}" velocity="${max_velocity}" /-->
+      <!-- <safety_controller soft_lower_limit="${-118 * PI / 180}"
+           soft_upper_limit="${118 * PI / 180}"
+           k_position="${safety_controller_k_pos}"
+           k_velocity="${safety_controller_k_vel}"/> -->
+      <dynamics damping="${joint_damping}"/>
+    </joint>
+
+    <link name="${name}_link_3">
+      <inertial>
+        <origin xyz="0 0.03 0.13" rpy="0 0 0"/>
+        <mass value="3"/>
+        <inertia ixx="0.08"  ixy="0"  ixz="0" iyy="0.075" iyz="0" izz="0.01" />
+      </inertial>
+
+      <visual>
+        <origin xyz="0 0 ${len_link_3 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 0.05 ${len_link_3}"/>
+        </geometry>
+        <material name="Orange"/>
+      </visual>
+
+      <collision>
+        <origin xyz="0 0 ${len_link_3 / 2}" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.05 0.05 ${len_link_3}"/>
+        </geometry>
+        <material name="Orange"/>
+      </collision>
+    </link>
+
+   
+
+    <!--Extensions -->
+    <xacro:lbr_iiwa_gazebo name="${name}" />
+    <xacro:lbr_iiwa_transmission name="${name}" hardware_interface="${hardware_interface}"/>
+
+  </xacro:macro>
+
+</robot>

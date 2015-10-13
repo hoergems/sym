@@ -58,7 +58,38 @@ void Robot::getLinkMasses(std::vector<std::string> &link, std::vector<double> &l
 					link_masses.push_back(links[j]->inertial->mass);
 				}
 				else{
-					link_masses.push_back(-1.0);
+					link_masses.push_back(0.0);
+				}
+			}
+		}
+	}
+}
+
+void Robot::getLinkInertias(std::vector<std::string> &link, std::vector<std::vector<double>> &inertias) {
+	std::vector<boost::shared_ptr<urdf::Link>> links;
+	model_->getLinks(links);
+	for (size_t i = 0; i < link.size(); i++) {
+		for (size_t j = 0; j < links.size(); j ++) {
+			if (links[j]->name == link[i]) {				
+				if (links[i]->inertial != nullptr) {					
+					std::vector<double> inert;
+					inert.push_back(links[i]->inertial->ixx);
+					inert.push_back(links[i]->inertial->ixy);
+					inert.push_back(links[i]->inertial->ixz);
+					inert.push_back(links[i]->inertial->iyy);
+					inert.push_back(links[i]->inertial->iyz);
+					inert.push_back(links[i]->inertial->izz);
+					inertias.push_back(inert);
+				}
+				else {
+					std::vector<double> inert;
+					inert.push_back(0.0);
+				    inert.push_back(0.0);
+					inert.push_back(0.0);
+					inert.push_back(0.0);
+					inert.push_back(0.0);
+					inert.push_back(0.0);
+					inertias.push_back(inert);
 				}
 			}
 		}
@@ -71,7 +102,7 @@ void Robot::getLinkDimension(std::vector<std::string> &link, std::vector<std::ve
 	for (size_t i = 0; i < link.size(); i++) {
 		for (size_t j = 0; j < links.size(); j ++) {
 			if (links[j]->name == link[i]) {
-				if (links[i]->collision != nullptr) {
+				if (links[j]->collision != nullptr) {
 					std::vector<double> dim;
 					boost::shared_ptr<urdf::Box> box = boost::static_pointer_cast<urdf::Box>(links[j]->collision->geometry);
 					dim.push_back(box->dim.x);
@@ -218,6 +249,7 @@ BOOST_PYTHON_MODULE(librobot) {
                         .def("getLinkMasses", &Robot::getLinkMasses)
                         .def("getLinkPose", &Robot::getLinkPose)
                         .def("getLinkInertialPose", &Robot::getLinkInertialPose)
+                        .def("getLinkInertias", &Robot::getLinkInertias)
                         .def("getJointNames", &Robot::getJointNames)
                         .def("getJointType", &Robot::getJointType)
                         .def("getJointOrigin", &Robot::getJointOrigin)
