@@ -11,20 +11,28 @@ SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${integrator_SOURCE_DIR})
 
 include_directories(/usr/include/eigen3 
                     /usr/inclue/boost
-                    /usr/include/python2.7)
+                    /usr/include/python2.7
+                    /opt/ros/indigo/include/urdf)
 
 # set the path to the library folder
-link_directories(/usr/lib /usr/local/lib)
+link_directories(/usr/lib /usr/local/lib /opt/ros/indigo/lib)
 
 # link the libraries to the executable
 
 add_library(integrate SHARED integrate.cpp)
+add_library(robot SHARED robot.cpp)
 
 target_link_libraries (integrate
                        boost_system
                        boost_python
                        python2.7)
+target_link_libraries (robot
+                       urdf
+                       boost_system
+                       boost_python
+                       python2.7)
 set_property(TARGET integrate PROPERTY CXX_STANDARD 11)
+set_property(TARGET robot PROPERTY CXX_STANDARD 11)
 
 #add_executable(inte main.cpp)
 #set_property(TARGET inte PROPERTY CXX_STANDARD 11)

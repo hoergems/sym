@@ -1,4 +1,5 @@
-
+from librobot import *
+from urdf_parser_py.urdf import URDF
 from sympy import *
 import numpy as np
 import time
@@ -8,7 +9,9 @@ from sympy.printing import print_ccode
 from scipy.integrate import ode, odeint
 
 class Test:
-    def __init__(self):        
+    def __init__(self): 
+        self.parse_urdf("lbr_iiwa/urdf/lbr_iiwa_meshfree.urdf")
+        sleep       
         l1, l2 = symbols("ls[0] ls[1]")
         theta1, theta2 = symbols("x[0] x[1]")
         dot_theta1, dot_theta2 = symbols("x[2] x[3]") 
@@ -109,6 +112,54 @@ class Test:
         """
         Generate c++ code
         """
+        
+    def parse_urdf(self, xml_file):
+        robot = Robot(xml_file)
+        
+        link_names = v_string()
+        robot.getLinkNames(link_names)
+        nms = [link_names[i] for i in xrange(len(link_names))]
+        print "names " + str(nms)
+        
+        masses = v_double()
+        robot.getLinkMasses(link_names, masses)        
+        ms = [masses[i] for i in xrange(len(masses))]
+        print "masses " + str(ms)        
+        
+        inertia_pose = v2_double()
+        robot.getLinkInertialPose(link_names, inertia_pose)
+        in_pse = [[inertia_pose[i][j] for j in xrange(len(inertia_pose[i]))] for i in xrange(len(inertia_pose))]
+        print "inertial pose " + str(in_pse)
+        
+        link_pose = v2_double()
+        robot.getLinkPose(link_names, link_pose)
+        link_pse = [[link_pose[i][j] for j in xrange(len(link_pose[i]))] for i in xrange(len(link_pose))]
+        print "link pose " + str(link_pse)
+        
+        link_dim = v2_double()
+        robot.getLinkDimension(link_names, link_dim)
+        link_dm = [[link_dim[i][j] for j in xrange(len(link_dim[i]))] for i in xrange(len(link_dim))]
+        print "link dimension " + str(link_dm)
+        
+        joint_names = v_string()
+        robot.getJointNames(joint_names)
+        joint_nms = [joint_names[i] for i in xrange(len(joint_names))]
+        print "joint names " + str(joint_nms)
+        
+        joint_type = v_string()
+        robot.getJointType(joint_names, joint_type)
+        joint_tpe = [joint_type[i] for i in xrange(len(joint_type))]
+        print "joint type " + str(joint_tpe)
+        
+        joint_origins = v2_double()
+        robot.getJointOrigin(joint_names, joint_origins)
+        joint_orgns = [[joint_origins[i][j] for j in xrange(len(joint_origins[i]))] for i in xrange(len(joint_origins))]
+        print "joint origins " + str(joint_orgns)
+        
+        joint_axis = v2_double()
+        robot.getJointAxis(joint_names, joint_axis)
+        joint_axs = [[joint_axis[i][j] for j in xrange(len(joint_axis[i]))] for i in xrange(len(joint_axis))]
+        print "joint axes " + str(joint_axs)
         
     def gen_cpp_code(self, fot):
         lines = list(open("integrate.cpp", 'r'))

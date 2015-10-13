@@ -23,7 +23,7 @@ class InteTest:
         int_times = v_double()
         int_times[:] = [t0, te, delt]
         
-        integrate.setup(thetas_star, dot_thetas_star, rho_star)
+        integrate.setup(thetas_star, dot_thetas_star, rho_star)        
         t0 = time.time()
         integrate.doIntegration(current_state, int_times)
         print "integration took " + str(time.time() - t0) + " seconds"
