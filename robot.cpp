@@ -33,19 +33,29 @@ Robot::Robot(std::string robot_file):
 	std::vector<boost::shared_ptr<urdf::Link>> links;
 	model_->getLinks(links);
 	for (size_t i = 0; i < links.size(); i++) {
-		if (links[i]->child_joints.size() != 0) {
-			cout << links[i]->child_joints[0]->name << endl;
+		if (links[i]->child_joints.size() != 0) {			
 			joints_.push_back(links[i]->child_joints[0]);
 		}		
 	}
 }
 
 void Robot::getLinkNames(std::vector<std::string> &link_names) {
-	std::vector<boost::shared_ptr<urdf::Link>> links;
-	model_->getLinks(links);
-	for (size_t i = 0; i < links.size(); i++) {
-		link_names.push_back(links[i]->name);
-	}
+	boost::shared_ptr<const urdf::Link> root = model_->getRoot();
+	link_names.push_back(root->name);
+	while (root->child_links.size() != 0) {
+		root = root->child_links[0];
+		link_names.push_back(root->name);
+	}	
+}
+
+void Robot::getJointNames(std::vector<std::string> &joint_names) {
+	boost::shared_ptr<const urdf::Link> root = model_->getRoot();
+	boost::shared_ptr<urdf::Joint> joint;
+	while (root->child_joints.size() != 0) {
+		joint = root->child_joints[0];
+		root = root->child_links[0];
+		joint_names.push_back(joint->name);
+	}	
 }
 
 void Robot::getLinkMasses(std::vector<std::string> &link, std::vector<double> &link_masses) {
@@ -169,16 +179,13 @@ void Robot::getLinkInertialPose(std::vector<std::string> &link, std::vector<std:
 				}
 				else {
 					std::vector<double> pse;
+					for (size_t k = 0; k < 6; k++) {
+						pse.push_back(0.0);
+					}
 					pose.push_back(pse);
 				}
 			}
 		}
-	}
-}
-
-void Robot::getJointNames(std::vector<std::string> &joint_names) {
-	for (size_t i = 0; i < joints_.size(); i++) {
-		joint_names.push_back(joints_[i]->name);
 	}
 }
 

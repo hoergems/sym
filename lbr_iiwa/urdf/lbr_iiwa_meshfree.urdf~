@@ -51,7 +51,7 @@
   <!--lbr-->
   <!--joint between {parent} and link_0-->
   <joint name="world_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0.0"/>
     <parent link="world"/>
     <child link="lbr_iiwa_link_0"/>
   </joint>
@@ -83,10 +83,10 @@
       </self_collision_checking-->
   </link>
   <!-- joint between link_0 and link_1 -->
-  <joint name="lbr_iiwa_joint_1" type="fixed">
+  <joint name="lbr_iiwa_joint_1" type="revolute">
     <parent link="lbr_iiwa_link_0"/>
     <child link="lbr_iiwa_link_1"/>
-    <origin rpy="0 0 1" xyz="0 0 0.1575"/>
+    <origin rpy="0 0 0" xyz="0 0 0.1575"/>
     <axis xyz="0 0 1"/>
     <limit effort="10" lower="-3.14159265359" upper="3.14159265359" velocity="10"/>
     <!--   <safety_controller soft_lower_limit="${-168 * M_PI / 180}"
@@ -186,6 +186,21 @@
       <material name="Orange"/>
     </collision>
   </link>
+  <joint name="lbr_iiwa_joint_4" type="fixed">
+    <parent link="lbr_iiwa_link_3"/>
+    <child link="lbr_iiwa_end_effector"/>
+    <origin rpy="0 0 0" xyz="0 0 0.2155"/>
+    <axis xyz="0 0 1"/>
+    <limit effort="10" lower="-2.96705972839" upper="2.96705972839" velocity="10"/>
+    <!--limit lower="0" upper="0"
+             effort="${max_effort_joint3}" velocity="${max_velocity}" /-->
+    <!-- <safety_controller soft_lower_limit="${-118 * PI / 180}"
+           soft_upper_limit="${118 * PI / 180}"
+           k_position="${safety_controller_k_pos}"
+           k_velocity="${safety_controller_k_vel}"/> -->
+    <dynamics damping="0.5"/>
+  </joint>
+  <link name="lbr_iiwa_end_effector"/>
   <!--Extensions -->
   <!-- Link0 -->
   <gazebo reference="lbr_iiwa_link_0">

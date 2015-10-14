@@ -185,6 +185,24 @@
       </collision>
     </link>
 
+    <joint name="${name}_joint_4" type="fixed">
+      <parent link="${name}_link_3"/>
+      <child link="${name}_end_effector"/>
+      <origin xyz="0 0 ${len_link_3}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-170 * PI / 180}" upper="${170 * PI / 180}"
+             effort="${max_effort_joint3}" velocity="${max_velocity}" />
+      <!--limit lower="0" upper="0"
+             effort="${max_effort_joint3}" velocity="${max_velocity}" /-->
+      <!-- <safety_controller soft_lower_limit="${-118 * PI / 180}"
+           soft_upper_limit="${118 * PI / 180}"
+           k_position="${safety_controller_k_pos}"
+           k_velocity="${safety_controller_k_vel}"/> -->
+      <dynamics damping="${joint_damping}"/>
+    </joint>
+
+    <link name="${name}_end_effector"/>
+
    
 
     <!--Extensions -->
