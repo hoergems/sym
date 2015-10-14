@@ -78,26 +78,28 @@ class Test:
         self.rho = []
         self.rhostar = []
         for i in xrange(len(self.joint_names)):
-            if self.joint_types[i] == "revolute":
-                symb_string_q = "x[" + str(i) + "]"
-                symb_string_q_dot = "x[" + str(i + len(self.joint_names)) + "]"
-                symb_string_q_star = "thetas_star_[" + str(i) + "]"
-                symb_string_q_dot_star = "dot_thetas_star_[" + str(i) + "]"
-                symb_string_r = "rho[" + str(i) + "]"
-                symb_string_r_star = "rhos_star_[" + str(i) + "]"
-                self.q.append(symbols(symb_string_q))
-                self.qdot.append(symbols(symb_string_q_dot))
-                self.rho.append(symbols(symb_string_r))
-                self.qstar.append(symbols(symb_string_q_star))
-                self.qdotstar.append(symbols(symb_string_q_dot_star))
-                self.rhostar.append(symbols(symb_string_r_star))                  
-            else:                
-                self.q.append(0.0)
-                self.qdot.append(0.0)
-                self.qstar.append(0.0)
-                self.qdotstar.append(0.0)
-                self.rho.append(0.0)
-                self.rhostar.append(0.0)
+            #if self.joint_types[i] == "revolute":
+            symb_string_q = "x[" + str(i) + "]"
+            symb_string_q_dot = "x[" + str(i + len(self.joint_names)) + "]"
+            symb_string_q_star = "thetas_star_[" + str(i) + "]"
+            symb_string_q_dot_star = "dot_thetas_star_[" + str(i) + "]"
+            symb_string_r = "rho[" + str(i) + "]"
+            symb_string_r_star = "rhos_star_[" + str(i) + "]"
+            self.q.append(symbols(symb_string_q))
+            self.qdot.append(symbols(symb_string_q_dot))
+            self.rho.append(symbols(symb_string_r))
+            self.qstar.append(symbols(symb_string_q_star))
+            self.qdotstar.append(symbols(symb_string_q_dot_star))
+            self.rhostar.append(symbols(symb_string_r_star))                  
+            '''else: 
+                sy = symbols('c')               
+                self.q.append(sy)
+                self.qdot.append(sy)
+                self.qstar.append(sy)
+                self.qdotstar.append(sy)
+                self.rho.append(sy)
+                self.rhostar.append(sy)'''
+        print self.q
         
         inertia_pose = v2_double()
         robot.getLinkInertialPose(link_names, inertia_pose)
@@ -301,7 +303,8 @@ class Test:
                                joint_origins[i][3] + axis[i][0] * thetas[i], 
                                joint_origins[i][4] + axis[i][1] * thetas[i], 
                                joint_origins[i][5] + axis[i][2] * thetas[i]) for i in xrange(len(joint_origins) -1)]
-        
+        print dhcs
+        sleep
         """
         O and z of the first joint
         """
@@ -365,6 +368,8 @@ class Test:
                       [0.0, 0.0, 0.0, 1.0]])
         
         res = roll * pitch * yaw * trans
+        print res
+        sleep
         return res
         
 if __name__ == "__main__":
