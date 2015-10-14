@@ -6,6 +6,7 @@ import os
 from sympy.printing import print_ccode
 
 from scipy.integrate import ode, odeint
+from gi.overrides.keysyms import R10
 
 class Test:
     def __init__(self):
@@ -147,16 +148,17 @@ class Test:
         
         
     def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs):
-        M_inv = M.inv()
+        M_inv = simplify(M.inv())
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs) - 1)])
         m_upper = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
-        m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs        
+        m_lower = simplify(-M_inv * simplify(C * Dotthetas + N) + M_inv * Rs)        
         h = m_upper.col_join(m_lower)        
         return h
         
     def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
+        print "Build taylor approximation"
         A = f.jacobian([thetas[i] for i in xrange(len(thetas) - 1)])
         B = f.jacobian([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
         C = f.jacobian([rs[i] for i in xrange(len(rs) - 1)])
@@ -175,7 +177,10 @@ class Test:
             
             f = f.subs(thetas[i], thetas_star[i])
             f = f.subs(dot_thetas[i], dot_thetas_star[i])
-            f = f.subs(rs[i], rs_star[i])        
+            f = f.subs(rs[i], rs_star[i])
+            
+        A = simplify(A)
+        B = simplify(B)        
         
         q = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         dot_q = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
@@ -185,8 +190,7 @@ class Test:
         dot_q_star = Matrix([[dot_thetas_star[i]] for i in xrange(len(dot_thetas_star) - 1)])
         r_star = Matrix([[rs_star[i]] for i in xrange(len(rs_star) - 1)])        
         
-        #sleep
-        print "Build taylor approximation"
+        #sleep        
         fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) #+ C * (r - r_star)
         return fot
         
@@ -236,7 +240,7 @@ class Test:
         for i in xrange(len(Ocs)):                                 
             V += ms[i + 1] * g * Ocs[i][2] 
             
-        N = Matrix([[diff(V, thetas[i])] for i in xrange(len(thetas) - 1)])        
+        N = Matrix([[simplify(diff(V, thetas[i]))] for i in xrange(len(thetas) - 1)])        
         return N        
         
     def calc_coriolis_matrix(self, thetas, dot_thetas, M):
@@ -245,20 +249,20 @@ class Test:
             for j in xrange(len(thetas) - 1):
                 val = 0.0
                 for k in xrange(len(thetas) - 1):                                              
-                    val += self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k]
-                C[i, j] = val        
+                    val += simplify(self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k])
+                C[i, j] = val                
         return C   
     
     def calc_christoffel_symbol(self, i, j, k, thetas, M):
-        t_i_j_k = 0.5 * (diff(M[i, j], thetas[k]) + 
-                         diff(M[i, k], thetas[j]) -
-                         diff(M[k, j], thetas[i]))
+        t_i_j_k = 0.5 * (simplify(diff(M[i, j], thetas[k])) + 
+                         simplify(diff(M[i, k], thetas[j])) -
+                         simplify(diff(M[k, j], thetas[i])))
         return t_i_j_k
     
     def calc_inertia_matrix(self, Jvs, M_is):        
         res = Matrix([[0.0 for n in xrange(len(Jvs))] for m in xrange(len(Jvs))])
         for i in xrange(len(Jvs)):
-            res += Jvs[i].transpose() * M_is[i] * Jvs[i]
+            res += simplify(Jvs[i].transpose() * M_is[i] * Jvs[i])        
         return res
     
     def construct_link_inertia_matrices(self, ms, Is):
@@ -303,8 +307,7 @@ class Test:
                                joint_origins[i][3] + axis[i][0] * thetas[i], 
                                joint_origins[i][4] + axis[i][1] * thetas[i], 
                                joint_origins[i][5] + axis[i][2] * thetas[i]) for i in xrange(len(joint_origins) -1)]
-        print dhcs
-        sleep
+        
         """
         O and z of the first joint
         """
@@ -327,26 +330,26 @@ class Test:
             col4 = res.col(3)            
             z = Matrix([col3[j] for j in xrange(3)])
             O = Matrix([col4[j] for j in xrange(3)])
-            Ocs.append(O)
+            Ocs.append(simplify(O))
             zcs.append(z)
             res = res * trans_matrices2[i]            
             col3 = res.col(2)
             col4 = res.col(3)            
             z = Matrix([col3[j] for j in xrange(3)])
             O = Matrix([col4[j] for j in xrange(3)])
-            Os.append(O)
+            Os.append(simplify(O))
             zs.append(z)
-        r1 = Matrix([zcs[0].cross(Ocs[1] - Os[1])])        
+        r1 = simplify(Matrix([zcs[0].cross(Ocs[1] - Os[1])]))
         Jvs = []
         for i in xrange(len(thetas) - 1):
             Jv = Matrix([[0.0 for m in xrange(len(thetas) - 1)] for n in xrange(6)])
             for k in xrange(i + 1):
-                r1 = Matrix(zcs[i].cross(Ocs[i] - Os[k]))                
+                r1 = simplify(Matrix(zcs[i].cross(Ocs[i] - Os[k])))                
                 for t in xrange(3):
                     Jv[t, k] = r1[t, 0]
                     Jv[t + 3, k] = zcs[i][t, 0]
             
-            Jvs.append(Jv)        
+            Jvs.append(simplify(Jv))          
         return Jvs, Ocs
     
     def transform(self, x, y, z, r, p, yaw):
@@ -367,9 +370,7 @@ class Test:
                       [0.0, 0.0, 1.0, 0.0],
                       [0.0, 0.0, 0.0, 1.0]])
         
-        res = roll * pitch * yaw * trans
-        print res
-        sleep
+        res = roll * pitch * yaw * trans        
         return res
         
 if __name__ == "__main__":
