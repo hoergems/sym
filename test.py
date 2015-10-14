@@ -350,22 +350,22 @@ class Test:
         return Jvs, Ocs
     
     def transform(self, x, y, z, r, p, yaw):
-        trans = Matrix([[1.0, 0.0, 0.0, x],
-                        [0.0, 1.0, 0.0, y],
-                        [0.0, 0.0, 1.0, z],
-                        [0.0, 0.0, 0.0, 1.0]])
-        roll = Matrix([[1.0, 0.0, 0.0, 0.0],
-                       [0.0, cos(r), -sin(r), 0.0],
-                       [0.0, sin(r), cos(r), 0.0],
-                       [0.0, 0.0, 0.0, 1.0]])
-        pitch = Matrix([[cos(p), 0.0, sin(p), 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [-sin(p), 0.0, cos(p), 0.0],
-                        [0.0, 0.0, 0.0, 1.0]])
-        yaw = Matrix([[cos(yaw), -sin(yaw), 0.0, 0.0],
-                      [sin(yaw), cos(yaw), 0.0, 0.0],
-                      [0.0, 0.0, 1.0, 0.0],
-                      [0.0, 0.0, 0.0, 1.0]])
+        trans = Matrix([[1, 0, 0, x],
+                        [0, 1, 0, y],
+                        [0, 0, 1, z],
+                        [0, 0, 0, 1]])
+        roll = Matrix([[1, 0, 0, 0],
+                       [0, cos(r), -sin(r), 0],
+                       [0, sin(r), cos(r), 0],
+                       [0, 0, 0, 1]])
+        pitch = Matrix([[cos(p), 0, sin(p), 0],
+                        [0, 1, 0, 0],
+                        [-sin(p), 0, cos(p), 0],
+                        [0, 0, 0, 1]])
+        yaw = Matrix([[cos(yaw), -sin(yaw), 0, 0],
+                      [sin(yaw), cos(yaw), 0, 0],
+                      [0, 0, 1, 0],
+                      [0, 0, 0, 1]])
         
         res = roll * pitch * yaw * trans
         print res
