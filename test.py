@@ -148,7 +148,13 @@ class Test:
         
         
     def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs):
-        M_inv = simplify(M.inv())
+        t0 = time.time()
+        M_inv = M.inv()
+        print "time1: " + str(time.time() - t0)
+        t0 = time.time()
+        M_inv = M.inv("LU")
+        print "time2: " + str(time.time() - t0)
+        sleep
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs) - 1)])
