@@ -30,6 +30,7 @@ class Test:
                                                   g))
         print "Get dynamic model"
         f = self.get_dynamic_model(M, C, N, self.q, self.qdot, self.rho)
+        print "Build taylor approximation"        
         fot = self.taylor_approximation(f, 
                                         self.q, 
                                         self.qdot, 
@@ -159,13 +160,14 @@ class Test:
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs) - 1)])
+        print "Constructing non-linear differential equation"
         m_upper = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
         m_lower = simplify(-M_inv * simplify(C * Dotthetas + N) + M_inv * Rs)        
         h = m_upper.col_join(m_lower)        
         return h
         
-    def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):
-        print "Build taylor approximation"
+    def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):        
+        print "Calculate partial derivatives..."        
         A = f.jacobian([thetas[i] for i in xrange(len(thetas) - 1)])
         B = f.jacobian([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
         C = f.jacobian([rs[i] for i in xrange(len(rs) - 1)])
@@ -185,7 +187,8 @@ class Test:
             f = f.subs(thetas[i], thetas_star[i])
             f = f.subs(dot_thetas[i], dot_thetas_star[i])
             f = f.subs(rs[i], rs_star[i])
-            
+        
+        print "Simplifying Jacobians..."  
         A = simplify(A)
         B = simplify(B)        
         
@@ -197,7 +200,8 @@ class Test:
         dot_q_star = Matrix([[dot_thetas_star[i]] for i in xrange(len(dot_thetas_star) - 1)])
         r_star = Matrix([[rs_star[i]] for i in xrange(len(rs_star) - 1)])        
         
-        #sleep        
+        #sleep
+        "Construct Taylor approximation..."       
         fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) #+ C * (r - r_star)
         return fot
         
