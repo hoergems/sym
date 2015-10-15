@@ -15,10 +15,14 @@ class Test:
         """
         Get the Jacobians of the links expressed in the robot's base frame
         """
-        Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q)
+        print "Calculating Jacobian matrices"
+        Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q)        
         M_is = self.construct_link_inertia_matrices(self.link_masses, self.Is)
+        print "Calculating inertia matrix"
         M = simplify(self.calc_inertia_matrix(Jvs, M_is))
-        C = simplify(self.calc_coriolis_matrix(self.q, self.qdot, M))        
+        print "Calculating coriolis matrix"
+        C = simplify(self.calc_coriolis_matrix(self.q, self.qdot, M))
+        print "Calculating normal forces"        
         N = simplify(self.calc_generalized_forces(self.q,
                                                   self.qdot, 
                                                   Ocs, 
@@ -147,14 +151,11 @@ class Test:
                 f.write(line)
         
         
-    def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs):
+    def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs): 
+        print "Inverting inertia matrix"       
         t0 = time.time()
-        M_inv = M.inv()
-        print "time1: " + str(time.time() - t0)
-        t0 = time.time()
-        M_inv = M.inv("LU")
-        print "time2: " + str(time.time() - t0)
-        sleep
+        M_inv = simplify(M.inv("LU"))
+        print "time to invert: " + str(time.time() - t0)        
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs) - 1)])
