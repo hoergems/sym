@@ -31,6 +31,8 @@ namespace shared {
     	
     	std::vector<double> rhos_star_;
     	
+    	std::vector<double> rho;
+    	
     	
     };
 

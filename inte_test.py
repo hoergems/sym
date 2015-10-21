@@ -1,5 +1,6 @@
 from libintegrate import *
 import time
+import numpy as np
 
 class InteTest:
     def __init__(self):
@@ -11,14 +12,14 @@ class InteTest:
         current_state = v_double()
         
         
-        thetas_star[:] = [0.0, 0.0]
+        thetas_star[:] = [np.pi / 2.0, 0.0]
         dot_thetas_star[:] = [0.0, 0.0]
-        rho_star[:] = [0, -1]
-        current_state[:] = [0.0, 0.0, 0.0, 0.0]
+        rho_star[:] = [0, -0.1]
+        current_state[:] = [np.pi / 2.0, 0.0, 0.0, 0.0]
         
         t0 = 0.0
-        te = 0.3
-        delt = 0.01
+        te = 0.03
+        delt = 0.03
         
         int_times = v_double()
         int_times[:] = [t0, te, delt]

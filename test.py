@@ -11,7 +11,7 @@ from scipy.integrate import ode, odeint
 from gi.overrides.keysyms import R10
 
 class Test:
-    def __init__(self, model, simplifying):
+    def __init__(self, model, simplifying, buildcpp):
         self.simplifying = simplifying
         self.parse_urdf(model)
         g = -9.81        
@@ -19,12 +19,13 @@ class Test:
         Get the Jacobians of the links expressed in the robot's base frame
         """
         print "Calculating Jacobian matrices"
-        Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q)        
+        Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q) 
+              
         M_is = self.construct_link_inertia_matrices(self.link_masses, self.Is)
         print "Calculating inertia matrix"
         M = self.calc_inertia_matrix(Jvs, M_is)
         if self.simplifying:
-            M = simplify(M)        
+            M = simplify(M)            
         print "Calculating coriolis matrix"
         C = self.calc_coriolis_matrix(self.q, self.qdot, M)
         if self.simplifying:
@@ -47,9 +48,11 @@ class Test:
                                         self.qdotstar, 
                                         self.rho,
                                         self.rhostar)
-        print "Generating c++ code..."
-        print fot
+        print "Generating c++ code..."        
         self.gen_cpp_code(fot)
+        if buildcpp:
+            cmd = "cd build && cmake .. && make -j8"           
+            os.system(cmd)
         print "Done"
         """
         Substitude all parameters here
@@ -93,9 +96,10 @@ class Test:
         self.rho = []
         self.rhostar = []
         for i in xrange(len(self.joint_names)):
-            #if self.joint_types[i] == "revolute":
+            #if self.joint_types[i] == "revolute":            
+            
             symb_string_q = "x[" + str(i) + "]"
-            symb_string_q_dot = "x[" + str(i + len(self.joint_names)) + "]"
+            symb_string_q_dot = "x[" + str(i + len(self.joint_names) - 1) + "]"
             symb_string_q_star = "thetas_star_[" + str(i) + "]"
             symb_string_q_dot_star = "dot_thetas_star_[" + str(i) + "]"
             symb_string_r = "rho[" + str(i) + "]"
@@ -113,9 +117,7 @@ class Test:
                 self.qstar.append(sy)
                 self.qdotstar.append(sy)
                 self.rho.append(sy)
-                self.rhostar.append(sy)'''
-        #print self.q
-        
+                self.rhostar.append(sy)'''             
         inertia_pose = v2_double()
         robot.getLinkInertialPose(link_names, inertia_pose)
         self.inertial_poses = [[inertia_pose[i][j] for j in xrange(len(inertia_pose[i]))] for i in xrange(len(inertia_pose))]
@@ -172,7 +174,7 @@ class Test:
         
         
     def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs): 
-        print "Inverting inertia matrix"       
+        print "Inverting inertia matrix"              
         t0 = time.time()
         M_inv = M.inv("LU")
         if self.simplifying:
@@ -187,15 +189,17 @@ class Test:
         if self.simplifying:
             m_lower = simplify(-M_inv * simplify(C * Dotthetas + N) + M_inv * Rs) 
         else:
-            m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs      
+            m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs 
+            #m_lower = (C * Dotthetas) #+ M_inv * Rs                   
         h = m_upper.col_join(m_lower)        
         return h
         
     def taylor_approximation(self, f, thetas, dot_thetas, thetas_star, dot_thetas_star, rs, rs_star):        
         print "Calculate partial derivatives..."        
+              
         A = f.jacobian([thetas[i] for i in xrange(len(thetas) - 1)])
         B = f.jacobian([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
-        C = f.jacobian([rs[i] for i in xrange(len(rs) - 1)])
+        #C = f.jacobian([rs[i] for i in xrange(len(rs) - 1)])
         for i in xrange(len(thetas) - 1):
             A = A.subs(thetas[i], thetas_star[i])
             A = A.subs(dot_thetas[i], dot_thetas_star[i])
@@ -205,9 +209,9 @@ class Test:
             B = B.subs(dot_thetas[i], dot_thetas_star[i])
             B = B.subs(rs[i], rs_star[i])
             
-            C = C.subs(thetas[i], dot_thetas[i])
-            C = C.subs(dot_thetas[i], dot_thetas_star[i])
-            C = C.subs(rs[i], rs_star[i])
+            #C = C.subs(thetas[i], dot_thetas[i])
+            #C = C.subs(dot_thetas[i], dot_thetas_star[i])
+            #C = C.subs(rs[i], rs_star[i])
             
             f = f.subs(thetas[i], thetas_star[i])
             f = f.subs(dot_thetas[i], dot_thetas_star[i])
@@ -216,7 +220,8 @@ class Test:
         if self.simplifying:
             print "Simplifying Jacobians..."         
             A = simplify(A)
-            B = simplify(B)        
+            B = simplify(B)
+            #C = simplify(C)        
         
         q = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         dot_q = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
@@ -228,7 +233,7 @@ class Test:
         
         #sleep
         "Construct Taylor approximation..."       
-        fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) #+ C * (r - r_star)
+        fot = f + A * (q - q_star) + B * (dot_q - dot_q_star) #+ C * (r - r_star)        
         return fot
         
     def test_fot(self, f):
@@ -273,9 +278,11 @@ class Test:
                                 Ocs, 
                                 ms, 
                                 g):
-        V = 0.0
-        for i in xrange(len(Ocs)):                                 
-            V += ms[i + 1] * g * Ocs[i][2] 
+        V = 0.0               
+        for i in xrange(len(Ocs)): 
+            el = ms[i + 1] * g * Ocs[i][2]                                           
+            V += el
+        
         N = 0
         if self.simplifying:    
             N = Matrix([[simplify(diff(V, thetas[i]))] for i in xrange(len(thetas) - 1)]) 
@@ -283,7 +290,7 @@ class Test:
             N = Matrix([[diff(V, thetas[i])] for i in xrange(len(thetas) - 1)])        
         return N        
         
-    def calc_coriolis_matrix(self, thetas, dot_thetas, M):
+    def calc_coriolis_matrix(self, thetas, dot_thetas, M):        
         C = Matrix([[0.0 for m in xrange(len(thetas) - 1)] for n in xrange(len(thetas) - 1)])
         for i in xrange(len(thetas) - 1):
             for j in xrange(len(thetas) - 1):
@@ -353,6 +360,10 @@ class Test:
         Transformations from the link origins to the center of masses
         """
         #print joint_origins[len(com_coordinates) - 1][5]
+        '''print (joint_origins[0][3] + axis[0][0] * thetas[0],
+               joint_origins[0][4] + axis[0][1] * thetas[0],
+               joint_origins[0][5] + axis[0][2] * thetas[0])
+        sleep'''
         dhcs = [self.transform(com_coordinates[i + 1][0], 
                                com_coordinates[i + 1][1], 
                                com_coordinates[i + 1][2], 
@@ -365,7 +376,7 @@ class Test:
         """
         Os = [Matrix([[joint_origins[0][0]],
                       [joint_origins[0][1]],
-                      [joint_origins[0][2]]])]
+                      [joint_origins[0][2]]])]        
         zs = [Matrix([[axis[0][0]],
                       [axis[0][1]],
                       [axis[0][2]]])]
@@ -390,8 +401,7 @@ class Test:
             z = Matrix([col3[j] for j in xrange(3)])
             O = Matrix([col4[j] for j in xrange(3)])
             Os.append(simplify(O))
-            zs.append(z)
-        print len(Ocs)
+            zs.append(z)        
         #r1 = simplify(Matrix([zcs[0].cross(Ocs[1] - Os[1])]))
         Jvs = []
         for i in xrange(len(thetas) - 1):
@@ -402,7 +412,7 @@ class Test:
                     Jv[t, k] = r1[t, 0]
                     Jv[t + 3, k] = zcs[i][t, 0]
             
-            Jvs.append(simplify(Jv))          
+            Jvs.append(simplify(Jv))                
         return Jvs, Ocs
     
     def transform(self, x, y, z, r, p, yaw):
@@ -431,6 +441,9 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--simplifying", 
                         help="Simplify the generated dynamic model", 
                         action="store_true")
+    parser.add_argument("-b", "--buildcpp", 
+                        help="Compile the c++ code after generating it", 
+                        action="store_true")
     parser.add_argument("-m", "--model", help="Path to the robot model file")
     args = parser.parse_args()
-    Test(args.model, args.simplifying)
+    Test(args.model, args.simplifying, args.buildcpp)
