@@ -3,14 +3,17 @@ from sympy import *
 import numpy as np
 import time
 import os
+import sys
+import argparse
 from sympy.printing import print_ccode
 
 from scipy.integrate import ode, odeint
 from gi.overrides.keysyms import R10
 
 class Test:
-    def __init__(self):
-        self.parse_urdf("test.urdf")
+    def __init__(self, model, simplifying):
+        self.simplifying = simplifying
+        self.parse_urdf(model)
         g = -9.81        
         """
         Get the Jacobians of the links expressed in the robot's base frame
@@ -19,15 +22,21 @@ class Test:
         Jvs, Ocs = self.get_link_jacobians(self.joint_origins, self.inertial_poses, self.joint_axis, self.q)        
         M_is = self.construct_link_inertia_matrices(self.link_masses, self.Is)
         print "Calculating inertia matrix"
-        M = simplify(self.calc_inertia_matrix(Jvs, M_is))
+        M = self.calc_inertia_matrix(Jvs, M_is)
+        if self.simplifying:
+            M = simplify(M)        
         print "Calculating coriolis matrix"
-        C = simplify(self.calc_coriolis_matrix(self.q, self.qdot, M))
-        print "Calculating normal forces"        
-        N = simplify(self.calc_generalized_forces(self.q,
-                                                  self.qdot, 
-                                                  Ocs, 
-                                                  self.link_masses, 
-                                                  g))
+        C = self.calc_coriolis_matrix(self.q, self.qdot, M)
+        if self.simplifying:
+            C = simplify(C)
+        print "Calculating normal forces" 
+        N = self.calc_generalized_forces(self.q,
+                                         self.qdot, 
+                                         Ocs, 
+                                         self.link_masses, 
+                                         g) 
+        if self.simplifying:      
+            N = simplify(N)
         print "Get dynamic model"
         f = self.get_dynamic_model(M, C, N, self.q, self.qdot, self.rho)
         print "Build taylor approximation"        
@@ -105,7 +114,7 @@ class Test:
                 self.qdotstar.append(sy)
                 self.rho.append(sy)
                 self.rhostar.append(sy)'''
-        print self.q
+        #print self.q
         
         inertia_pose = v2_double()
         robot.getLinkInertialPose(link_names, inertia_pose)
@@ -127,24 +136,34 @@ class Test:
         
     def gen_cpp_code(self, fot):
         lines = list(open("integrate.cpp", 'r'))
-        idx = -1       
+        idx1 = -1 
+        idx2 = -1 
+        temp_lines = []     
         for i in xrange(len(lines)):
             if "void Integrate::ode" in lines[i]:
-                idx = i        
-        cpp_string = "void Integrate::ode(const state_type &x , state_type &dxdt , double t) const {"
-        cpp_string += "std::vector<double> terms({"
+                idx1 = i 
+            elif "BOOST_PYTHON_MODULE(libintegrate)" in lines[i]:
+                idx2 = i
+        temp_lines.append("\n")
+        temp_lines.append("void Integrate::ode(const state_type &x , state_type &dxdt , double t) const { \n")       
+        temp_lines.append("std::vector<double> terms({")        
         for i in xrange(len(fot)):
-            cpp_string += ccode(fot[i])
+            temp_lines.append(ccode(fot[i]))            
             if i != len(fot) - 1:
-                cpp_string += ", "
-        cpp_string += "});"
+                temp_lines.append(", \n")               
+        temp_lines.append("}); \n")       
+        temp_lines.append("dxdt.clear(); \n")
+        temp_lines.append("for(size_t i = 0; i < x.size(); i++) { dxdt.push_back(terms[i]); } \n")
+        temp_lines.append("} \n")       
         
-        cpp_string += "dxdt.clear();"
-        cpp_string += "for(size_t i = 0; i < x.size(); i++) { dxdt.push_back(terms[i]); }"
-        cpp_string += "} \n"
-                
-        if not idx == -1:
-            lines[idx] = cpp_string
+        del lines[idx1:idx2]
+        idx = -1
+        for i in xrange(len(lines)):
+            if "BOOST_PYTHON_MODULE(libintegrate)" in lines[i]:
+                idx = i
+        lines[idx-1:idx-1] = temp_lines    
+        '''if not idx1 == -1:
+            lines[idx1] = cpp_string'''
             
         os.remove("integrate.cpp")
         with open("integrate.cpp", 'a+') as f:
@@ -155,14 +174,20 @@ class Test:
     def get_dynamic_model(self, M, C, N, thetas, dot_thetas, rs): 
         print "Inverting inertia matrix"       
         t0 = time.time()
-        M_inv = simplify(M.inv("LU"))
+        M_inv = M.inv("LU")
+        if self.simplifying:
+            M_inv = simplify(M_inv)
         print "time to invert: " + str(time.time() - t0)        
         Thetas = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         Dotthetas = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
         Rs = Matrix([[rs[i]] for i in xrange(len(rs) - 1)])
         print "Constructing non-linear differential equation"
         m_upper = Matrix([dot_thetas[i] for i in xrange(len(dot_thetas) - 1)])
-        m_lower = simplify(-M_inv * simplify(C * Dotthetas + N) + M_inv * Rs)        
+        m_lower = 0
+        if self.simplifying:
+            m_lower = simplify(-M_inv * simplify(C * Dotthetas + N) + M_inv * Rs) 
+        else:
+            m_lower = -M_inv * (C * Dotthetas + N) + M_inv * Rs      
         h = m_upper.col_join(m_lower)        
         return h
         
@@ -188,9 +213,10 @@ class Test:
             f = f.subs(dot_thetas[i], dot_thetas_star[i])
             f = f.subs(rs[i], rs_star[i])
         
-        print "Simplifying Jacobians..."  
-        A = simplify(A)
-        B = simplify(B)        
+        if self.simplifying:
+            print "Simplifying Jacobians..."         
+            A = simplify(A)
+            B = simplify(B)        
         
         q = Matrix([[thetas[i]] for i in xrange(len(thetas) - 1)])
         dot_q = Matrix([[dot_thetas[i]] for i in xrange(len(dot_thetas) - 1)])
@@ -250,8 +276,11 @@ class Test:
         V = 0.0
         for i in xrange(len(Ocs)):                                 
             V += ms[i + 1] * g * Ocs[i][2] 
-            
-        N = Matrix([[simplify(diff(V, thetas[i]))] for i in xrange(len(thetas) - 1)])        
+        N = 0
+        if self.simplifying:    
+            N = Matrix([[simplify(diff(V, thetas[i]))] for i in xrange(len(thetas) - 1)]) 
+        else:
+            N = Matrix([[diff(V, thetas[i])] for i in xrange(len(thetas) - 1)])        
         return N        
         
     def calc_coriolis_matrix(self, thetas, dot_thetas, M):
@@ -259,21 +288,33 @@ class Test:
         for i in xrange(len(thetas) - 1):
             for j in xrange(len(thetas) - 1):
                 val = 0.0
-                for k in xrange(len(thetas) - 1):                                              
-                    val += simplify(self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k])
+                for k in xrange(len(thetas) - 1): 
+                    if self.simplifying:                                             
+                        val += simplify(self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k])
+                    else:
+                        val += self.calc_christoffel_symbol(i, j, k, thetas, M) * dot_thetas[k]
                 C[i, j] = val                
         return C   
     
     def calc_christoffel_symbol(self, i, j, k, thetas, M):
-        t_i_j_k = 0.5 * (simplify(diff(M[i, j], thetas[k])) + 
-                         simplify(diff(M[i, k], thetas[j])) -
-                         simplify(diff(M[k, j], thetas[i])))
+        t_i_j_k = 0.0
+        if self.simplifying:
+            t_i_j_k = 0.5 * (simplify(diff(M[i, j], thetas[k])) + 
+                             simplify(diff(M[i, k], thetas[j])) -
+                             simplify(diff(M[k, j], thetas[i])))
+        else:
+            t_i_j_k = 0.5 * (diff(M[i, j], thetas[k]) + 
+                             diff(M[i, k], thetas[j]) -
+                             diff(M[k, j], thetas[i]))
         return t_i_j_k
     
     def calc_inertia_matrix(self, Jvs, M_is):        
         res = Matrix([[0.0 for n in xrange(len(Jvs))] for m in xrange(len(Jvs))])
         for i in xrange(len(Jvs)):
-            res += simplify(Jvs[i].transpose() * M_is[i] * Jvs[i])        
+            if self.simplifying:
+                res += simplify(Jvs[i].transpose() * M_is[i] * Jvs[i])
+            else:
+                res += Jvs[i].transpose() * M_is[i] * Jvs[i]        
         return res
     
     def construct_link_inertia_matrices(self, ms, Is):
@@ -350,7 +391,8 @@ class Test:
             O = Matrix([col4[j] for j in xrange(3)])
             Os.append(simplify(O))
             zs.append(z)
-        r1 = simplify(Matrix([zcs[0].cross(Ocs[1] - Os[1])]))
+        print len(Ocs)
+        #r1 = simplify(Matrix([zcs[0].cross(Ocs[1] - Os[1])]))
         Jvs = []
         for i in xrange(len(thetas) - 1):
             Jv = Matrix([[0.0 for m in xrange(len(thetas) - 1)] for n in xrange(6)])
@@ -385,4 +427,10 @@ class Test:
         return res
         
 if __name__ == "__main__":
-    Test()
+    parser = argparse.ArgumentParser(description='Dynamic model generator.')
+    parser.add_argument("-s", "--simplifying", 
+                        help="Simplify the generated dynamic model", 
+                        action="store_true")
+    parser.add_argument("-m", "--model", help="Path to the robot model file")
+    args = parser.parse_args()
+    Test(args.model, args.simplifying)
