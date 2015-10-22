@@ -14,7 +14,7 @@ class Test:
     def __init__(self, model, simplifying, buildcpp):
         self.simplifying = simplifying
         self.parse_urdf(model)
-        g = -9.81        
+        g = 9.81        
         """
         Get the Jacobians of the links expressed in the robot's base frame
         """
